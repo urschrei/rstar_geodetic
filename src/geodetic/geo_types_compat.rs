@@ -17,12 +17,13 @@
 
 use alloc::vec::Vec;
 
-use geo_types::{Coord, LineString, Point, Polygon};
+use geo_types::{Coord, LineString, MultiLineString, MultiPoint, MultiPolygon, Point, Polygon};
 
 use super::coord::{GeodeticCoord, GeodeticError};
 use super::linestring::GeodeticLineString;
 use super::point::GeodeticPoint;
 use super::polygon::{GeodeticPolygon, GeodeticRing};
+use super::tree::GeodeticRTree;
 
 /// Builds a `geo-types` [`LineString`] from the degree coordinates of a ring or polyline.
 fn to_linestring(coords: &[GeodeticCoord]) -> LineString<f64> {
@@ -133,6 +134,51 @@ impl From<GeodeticPolygon> for Polygon<f64> {
     }
 }
 
+// --- geo-types multi-geometries -> a bulk-loaded GeodeticRTree ---
+//
+// The orphan rule forbids implementing a foreign trait for `Vec<GeodeticPolygon>` (the
+// `Vec` is foreign), so the collection conversions target the local `GeodeticRTree<_>`
+// instead, building the index directly. For a plain `Vec`, or to go the other way, map
+// the element conversions over the geometry's iterator (see the crate documentation).
+// Each is fallible for the same reason the element conversions are: every coordinate is
+// range-checked and the structural preconditions enforced.
+
+impl TryFrom<MultiPoint<f64>> for GeodeticRTree<GeodeticPoint> {
+    type Error = GeodeticError;
+    fn try_from(points: MultiPoint<f64>) -> Result<Self, Self::Error> {
+        let leaves = points
+            .0
+            .into_iter()
+            .map(GeodeticPoint::try_from)
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(GeodeticRTree::bulk_load(leaves))
+    }
+}
+
+impl TryFrom<MultiLineString<f64>> for GeodeticRTree<GeodeticLineString> {
+    type Error = GeodeticError;
+    fn try_from(lines: MultiLineString<f64>) -> Result<Self, Self::Error> {
+        let leaves = lines
+            .0
+            .into_iter()
+            .map(GeodeticLineString::try_from)
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(GeodeticRTree::bulk_load(leaves))
+    }
+}
+
+impl TryFrom<MultiPolygon<f64>> for GeodeticRTree<GeodeticPolygon> {
+    type Error = GeodeticError;
+    fn try_from(polygons: MultiPolygon<f64>) -> Result<Self, Self::Error> {
+        let leaves = polygons
+            .0
+            .into_iter()
+            .map(GeodeticPolygon::try_from)
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(GeodeticRTree::bulk_load(leaves))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -206,5 +252,45 @@ mod tests {
         let back: Polygon<f64> = poly.clone().into();
         assert_eq!(back.exterior().0.first(), back.exterior().0.last());
         assert!(poly.interiors().is_empty());
+    }
+
+    #[test]
+    fn multi_point_builds_a_tree() {
+        let mp = MultiPoint(vec![Point::new(0.0, 0.0), Point::new(10.0, 10.0)]);
+        let tree = GeodeticRTree::try_from(mp).unwrap();
+        assert_eq!(tree.size(), 2);
+    }
+
+    #[test]
+    fn multi_line_string_builds_a_tree() {
+        let mls = MultiLineString(vec![
+            LineString::new(vec![Coord { x: 0.0, y: 0.0 }, Coord { x: 1.0, y: 1.0 }]),
+            LineString::new(vec![Coord { x: 2.0, y: 2.0 }, Coord { x: 3.0, y: 3.0 }]),
+        ]);
+        let tree = GeodeticRTree::try_from(mls).unwrap();
+        assert_eq!(tree.size(), 2);
+    }
+
+    #[test]
+    fn multi_polygon_builds_a_tree() {
+        let square = Polygon::new(
+            LineString::new(vec![
+                Coord { x: 0.0, y: 0.0 },
+                Coord { x: 10.0, y: 0.0 },
+                Coord { x: 10.0, y: 10.0 },
+                Coord { x: 0.0, y: 10.0 },
+            ]),
+            Vec::new(),
+        );
+        let tree = GeodeticRTree::try_from(MultiPolygon(vec![square])).unwrap();
+        assert_eq!(tree.size(), 1);
+    }
+
+    #[test]
+    fn multi_point_propagates_element_validation_error() {
+        // The second point has a latitude out of range; the whole conversion fails.
+        let mp = MultiPoint(vec![Point::new(0.0, 0.0), Point::new(0.0, 200.0)]);
+        let result = GeodeticRTree::try_from(mp);
+        assert_eq!(result.err(), Some(GeodeticError::LatOutOfRange(200.0)));
     }
 }

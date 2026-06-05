@@ -110,6 +110,49 @@ let geo_point: geo_types::Point = GeodeticPoint::new(2.5, 48.8).into();
 assert_eq!((geo_point.x(), geo_point.y()), (2.5, 48.8));
 ```
 
+A geo-types multi-geometry builds an index directly: `TryFrom<MultiPoint>`,
+`TryFrom<MultiLineString>`, and `TryFrom<MultiPolygon>` for the matching `GeodeticRTree`.
+
+```rust
+use geo_types::{Coord, LineString, MultiLineString};
+use rstar_geodetic::{GeodeticLineString, GeodeticRTree};
+
+let lines = MultiLineString(vec![
+    LineString::new(vec![Coord { x: 0.0, y: 0.0 }, Coord { x: 1.0, y: 1.0 }]),
+    LineString::new(vec![Coord { x: 5.0, y: 5.0 }, Coord { x: 6.0, y: 4.0 }]),
+]);
+let tree: GeodeticRTree<GeodeticLineString> = lines.try_into().unwrap();
+assert_eq!(tree.size(), 2);
+```
+
+The orphan rule prevents converting straight to a `Vec<GeodeticPolygon>` (the `Vec` is a
+foreign type), so the collection conversions target `GeodeticRTree`. For a plain `Vec`, or
+to convert back to `geo-types`, map the element conversions over the geometry's iterator:
+
+```rust
+use geo_types::{Coord, LineString, MultiPolygon, Polygon};
+use rstar_geodetic::GeodeticPolygon;
+
+let mp = MultiPolygon(vec![Polygon::new(
+    LineString::new(vec![
+        Coord { x: 0.0, y: 0.0 }, Coord { x: 4.0, y: 0.0 },
+        Coord { x: 4.0, y: 4.0 }, Coord { x: 0.0, y: 4.0 },
+    ]),
+    vec![],
+)]);
+
+// geo-types -> Vec<GeodeticPolygon> (validating)
+let geodetic: Vec<GeodeticPolygon> = mp
+    .into_iter()
+    .map(GeodeticPolygon::try_from)
+    .collect::<Result<_, _>>()
+    .unwrap();
+
+// Vec<GeodeticPolygon> -> geo-types MultiPolygon (infallible)
+let multi: MultiPolygon = geodetic.into_iter().map(Polygon::from).collect();
+assert_eq!(multi.0.len(), 1);
+```
+
 ## Earth model and the `wgs84` feature
 
 The base index uses a spherical Earth (the GRS80 mean radius, 6 371 008.8 m); against
