@@ -89,3 +89,9 @@ extern crate alloc;
 mod geodetic;
 
 pub use geodetic::*;
+
+/// Compiles and runs the code examples in `README.md` as doctests, keeping them in step
+/// with the API. Only present during doctest builds; it is not part of the public API.
+#[cfg(doctest)]
+#[doc = include_str!("../README.md")]
+pub struct ReadmeDoctests;

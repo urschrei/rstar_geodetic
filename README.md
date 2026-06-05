@@ -13,7 +13,9 @@ special cases are required, and nearest-neighbour ordering matches great-circle 
 leaves. Coordinates are longitude first, latitude second (the `geo`/OGC convention),
 taken in degrees; distances are returned in metres.
 
-## Example
+## Examples
+
+### Points
 
 ```rust
 use rstar_geodetic::{GeodeticRTree, GeodeticCoord, GeodeticPoint};
@@ -29,6 +31,57 @@ let (nn, distance_m) = tree.nearest_neighbor_with_distance(query).unwrap();
 
 assert_eq!((nn.coord().lon, nn.coord().lat), (-175.0, -21.0));
 assert!(distance_m < 200_000.0);
+```
+
+### Linestrings
+
+A `GeodeticLineString` leaf measures the minimum great-circle distance to a polyline,
+which may fall on the interior of an edge, not only at a vertex. Each edge must span
+less than 180 degrees; densify longer edges first.
+
+```rust
+use rstar_geodetic::{GeodeticRTree, GeodeticCoord, GeodeticLineString};
+
+let near = GeodeticLineString::try_from_lonlat([(0.0, 0.0), (1.0, 1.0), (2.0, 0.0)]).unwrap();
+let far = GeodeticLineString::try_from_lonlat([(10.0, 10.0), (11.0, 11.0)]).unwrap();
+let tree = GeodeticRTree::bulk_load(vec![near, far]);
+
+// The nearest linestring to the query, with the great-circle distance in metres.
+let (nearest, metres) = tree
+    .nearest_neighbor_with_distance(GeodeticCoord { lon: 1.0, lat: 0.5 })
+    .unwrap();
+assert_eq!(nearest.coords()[0], GeodeticCoord { lon: 0.0, lat: 0.0 });
+assert!(metres < 100_000.0); // within ~100 km of the nearer linestring
+```
+
+### Polygons
+
+A `GeodeticPolygon` leaf is a filled spherical polygon: a query strictly inside is at
+distance zero, otherwise the distance is to the nearest boundary point. Ring orientation
+follows OGC/GeoJSON (exterior counter-clockwise as seen from outside, holes clockwise) and
+is respected as given, not auto-corrected, so polygons larger than a hemisphere are
+expressible.
+
+```rust
+use rstar_geodetic::{GeodeticRTree, GeodeticCoord, GeodeticPolygon, GeodeticRing};
+
+// A lon/lat square, counter-clockwise as seen from outside (interior to the left).
+let ring = GeodeticRing::try_from_lonlat([
+    (0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0), (0.0, 0.0),
+])
+.unwrap();
+let poly = GeodeticPolygon::try_new(ring, Vec::new()).unwrap();
+let tree = GeodeticRTree::bulk_load(vec![poly]);
+
+// A query inside the polygon is at distance zero; one outside is positive.
+let (_, inside_m) = tree
+    .nearest_neighbor_with_distance(GeodeticCoord { lon: 5.0, lat: 5.0 })
+    .unwrap();
+assert_eq!(inside_m, 0.0);
+let (_, outside_m) = tree
+    .nearest_neighbor_with_distance(GeodeticCoord { lon: -5.0, lat: 5.0 })
+    .unwrap();
+assert!(outside_m > 0.0);
 ```
 
 ## Earth model and the `wgs84` feature
