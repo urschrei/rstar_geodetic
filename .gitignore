@@ -1,0 +1,4 @@
+/target
+.DS_Store
+# hegeltest working state; never commit it
+.hegel/

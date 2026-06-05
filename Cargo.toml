@@ -1,0 +1,55 @@
+[package]
+name = "rstar_geodetic"
+version = "0.1.0"
+authors = [
+    "Stephan Hügel <urschrei@gmail.com>",
+]
+description = "A geodetic R-tree built on rstar, with great-circle distance queries"
+documentation = "https://docs.rs/rstar_geodetic/"
+repository = "https://github.com/urschrei/rstar_geodetic"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+edition = "2024"
+rust-version = "1.85"
+keywords = ["rtree", "geodetic", "spatial", "geo", "nearest-neighbor"]
+categories = ["data-structures", "science::geo"]
+
+[dependencies]
+rstar = "0.13"
+num-traits = { version = "0.2", default-features = false, features = ["libm"] }
+# Robust adaptive geometric predicates (orient3d) for the polygon point-in-polygon
+# sign tests. Forced into no_std mode so the crate builds for a no_std target; no_std
+# robust compiles fine under std too.
+robust = { version = "1", default-features = false, features = ["no_std"] }
+# WGS84 geodesic (Karney) distances for the `wgs84` refine. It is a `std` crate (it
+# calls the inherent `f64` math methods), so it is gated behind the `wgs84` feature,
+# keeping the base crate no_std. `default-features = false` drops its `accurate`
+# summation feature, matching rust-geo's use.
+geographiclib-rs = { version = "0.2", optional = true, default-features = false }
+
+[features]
+default = []
+# Spheroidal (WGS84) geodesic refine for the point tree, layered on the spherical
+# index. Pulls in `geographiclib-rs` and so requires `std`; the base crate stays
+# no_std.
+wgs84 = ["dep:geographiclib-rs"]
+
+[dev-dependencies]
+approx = "0.5"
+rand = "0.10"
+rand_hc = "0.5"
+hegeltest = "0.14.11"
+criterion = { version = "0.8", features = ["html_reports"] }
+
+[[bench]]
+name = "geodetic"
+harness = false
+
+[[bench]]
+name = "geodetic_extent"
+harness = false
+
+[[bench]]
+name = "geodetic_wgs84"
+harness = false
+required-features = ["wgs84"]

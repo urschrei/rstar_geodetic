@@ -1,0 +1,87 @@
+name: Run tests
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  NO_STD_TARGET: aarch64-unknown-none
+
+jobs:
+  test:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: test
+      - run: cargo test
+      - run: cargo test --features wgs84
+
+  check:
+    name: Rustfmt and Clippy check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+      - name: Check formatting using Rustfmt
+        run: cargo fmt --all --check
+      - name: Lint using Clippy
+        run: cargo clippy --all-targets -- -D warnings
+      - name: Lint wgs84 feature using Clippy
+        run: cargo clippy --features wgs84 --all-targets -- -D warnings
+
+  msrv:
+    name: MSRV build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install MSRV toolchain
+        uses: dtolnay/rust-toolchain@1.85.0
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+      - name: Run cargo build for MSRV
+        run: cargo build --features wgs84
+
+  no_std:
+    name: no_std build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{env.NO_STD_TARGET}}
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: no-std-${{env.NO_STD_TARGET}}
+      - name: Run cargo build for ${{env.NO_STD_TARGET}}
+        run: cargo build --target ${{env.NO_STD_TARGET}}
+
+  conclusion:
+    needs:
+      - test
+      - check
+      - msrv
+      - no_std
+    runs-on: ubuntu-latest
+    steps:
+      - name: Result
+        run: echo "All checks passed"
