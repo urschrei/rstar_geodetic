@@ -25,6 +25,8 @@ jobs:
           key: test
       - run: cargo test
       - run: cargo test --features wgs84
+      # Guard that the optional `geo-types` feature is genuinely optional.
+      - run: cargo build --no-default-features
 
   check:
     name: Rustfmt and Clippy check

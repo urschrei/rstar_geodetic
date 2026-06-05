@@ -84,6 +84,32 @@ let (_, outside_m) = tree
 assert!(outside_m > 0.0);
 ```
 
+## geo-types interoperability
+
+The default `geo-types` feature adds `From`/`TryFrom` conversions between the geodetic
+geometries and [`geo-types`](https://crates.io/crates/geo-types). Coordinate order
+matches on both sides (`x = lon`, `y = lat`). Conversions *into* the validated geometries
+are fallible (they range-check coordinates and enforce structural preconditions, yielding
+a `GeodeticError`); conversions back *out* are infallible. Disable with
+`default-features = false` to drop the dependency.
+
+```rust
+use geo_types::{Coord, LineString};
+use rstar_geodetic::{GeodeticLineString, GeodeticPoint};
+
+// geo-types -> geodetic is validating (TryFrom): a GeodeticError on out-of-range or
+// structurally invalid input.
+let line: GeodeticLineString =
+    LineString::new(vec![Coord { x: 0.0, y: 0.0 }, Coord { x: 1.0, y: 1.0 }])
+        .try_into()
+        .unwrap();
+assert_eq!(line.coords().len(), 2);
+
+// geodetic -> geo-types is infallible.
+let geo_point: geo_types::Point = GeodeticPoint::new(2.5, 48.8).into();
+assert_eq!((geo_point.x(), geo_point.y()), (2.5, 48.8));
+```
+
 ## Earth model and the `wgs84` feature
 
 The base index uses a spherical Earth (the GRS80 mean radius, 6 371 008.8 m); against

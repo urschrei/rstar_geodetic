@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   across the antimeridian and the poles.
 - Optional `wgs84` feature: ellipsoidal geodesic refine (Karney, via
   `geographiclib-rs`) for the point tree, plus the standalone `geodesic_distance`.
+- Default `geo-types` feature: `From`/`TryFrom` conversions between the geodetic
+  geometries and `geo-types` (pulled in with `default-features = false`, so the base
+  crate stays no_std). Inbound conversions validate; outbound are infallible.
 - Property tests (Hegel) and an externally-anchored arc-distance reference.
 
 This code was extracted from a feature branch of `rstar`. It uses only the public

@@ -12,6 +12,9 @@ mod polygon;
 mod spheroid;
 mod tree;
 
+#[cfg(feature = "geo-types")]
+mod geo_types_compat;
+
 pub use arc::{arc_bounding_box, arc_contains_point, arc_distance_2, nearest_point_on_arc};
 pub use coord::{GeodeticCoord, GeodeticError};
 pub use distance::{

@@ -26,13 +26,20 @@ robust = { version = "1", default-features = false, features = ["no_std"] }
 # keeping the base crate no_std. `default-features = false` drops its `accurate`
 # summation feature, matching rust-geo's use.
 geographiclib-rs = { version = "0.2", optional = true, default-features = false }
+# Conversions to and from `geo-types` geometries, on by default. `default-features =
+# false` selects its no_std mode so the base crate stays no_std even with this feature
+# enabled.
+geo-types = { version = "0.7", optional = true, default-features = false }
 
 [features]
-default = []
+default = ["geo-types"]
 # Spheroidal (WGS84) geodesic refine for the point tree, layered on the spherical
 # index. Pulls in `geographiclib-rs` and so requires `std`; the base crate stays
 # no_std.
 wgs84 = ["dep:geographiclib-rs"]
+# `From`/`TryFrom` conversions between the geodetic geometries and `geo-types`. Enabled
+# by default; disable with `default-features = false` to drop the `geo-types` dependency.
+geo-types = ["dep:geo-types"]
 
 [dev-dependencies]
 approx = "0.5"
