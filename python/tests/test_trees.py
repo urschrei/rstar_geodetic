@@ -148,3 +148,21 @@ def test_polygon_tree_contains_point():
     assert index == 0
     assert distance == 0.0
     assert tree.geometry(0).__geo_interface__["type"] == "Polygon"
+
+
+def test_nearest_wgs84_agrees_with_spherical_ranking():
+    tree = rg.GeodeticPointTree(CAPITALS)
+    query = (0.0, 50.0)
+    assert tree.nearest_wgs84(query) == tree.nearest(query)
+    _, geodesic = tree.nearest_with_distance_wgs84(query)
+    _, spherical = tree.nearest_with_distance(query)
+    # The ellipsoidal distance is within ~0.5% of the spherical one at this scale.
+    assert geodesic == pytest.approx(spherical, rel=0.01)
+
+
+def test_within_distance_wgs84():
+    tree = rg.GeodeticPointTree(CAPITALS)
+    # Within 100 km of a point near Paris: Paris only.
+    assert set(tree.within_distance_wgs84((2.0, 49.0), 100_000.0)) == {1}
+    pairs = tree.within_distance_wgs84((2.0, 49.0), 100_000.0, return_distance=True)
+    assert all(distance <= 100_000.0 for _, distance in pairs)

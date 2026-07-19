@@ -17,7 +17,7 @@ use pyo3::types::PyList;
 use rstar::{AABB, PointDistance, RTreeObject};
 use rstar_geodetic::{
     GeodeticCoord, GeodeticLineString, GeodeticPoint, GeodeticPolygon, GeodeticRTree, UnitVec,
-    squared_chord_to_metres,
+    geodesic_distance_wgs84, squared_chord_to_metres,
 };
 
 use crate::geo_interface::{collect_linestrings, collect_points, collect_polygons, parse_point};
@@ -218,6 +218,54 @@ impl GeodeticPointTree {
             }
         }
         Ok(indices)
+    }
+
+    /// The input position of the nearest point to `query` by WGS84-ellipsoid geodesic
+    /// distance, or `None` if the tree is empty.
+    fn nearest_wgs84(&self, query: &Bound<'_, PyAny>) -> PyResult<Option<usize>> {
+        let coord = query_coord(query)?;
+        Ok(self
+            .tree
+            .nearest_neighbor_with_distance_wgs84(coord)
+            .map(|(point, _)| self.position(point.coord())))
+    }
+
+    /// The `(input position, geodesic distance in metres)` of the nearest point to `query`
+    /// on the WGS84 ellipsoid, or `None` if empty.
+    fn nearest_with_distance_wgs84(
+        &self,
+        query: &Bound<'_, PyAny>,
+    ) -> PyResult<Option<(usize, f64)>> {
+        let coord = query_coord(query)?;
+        Ok(self
+            .tree
+            .nearest_neighbor_with_distance_wgs84(coord)
+            .map(|(point, metres)| (self.position(point.coord()), metres)))
+    }
+
+    /// The input positions of every point within `radius_metres` WGS84-ellipsoid geodesic
+    /// metres of `query`. With `return_distance=True`, `(index, distance)` pairs instead.
+    #[pyo3(signature = (query, radius_metres, return_distance=false))]
+    fn within_distance_wgs84<'py>(
+        &self,
+        py: Python<'py>,
+        query: &Bound<'_, PyAny>,
+        radius_metres: f64,
+        return_distance: bool,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let coord = query_coord(query)?;
+        let mut seen: HashSet<(u64, u64)> = HashSet::new();
+        let mut pairs: Vec<(usize, f64)> = Vec::new();
+        for point in self.tree.locate_within_distance_wgs84(coord, radius_metres) {
+            let key = coord_key(point.coord());
+            if seen.insert(key) {
+                let metres = geodesic_distance_wgs84(coord, point.coord());
+                for &index in &self.index_by_coord[&key] {
+                    pairs.push((index, metres));
+                }
+            }
+        }
+        within_result(py, pairs, return_distance)
     }
 }
 
