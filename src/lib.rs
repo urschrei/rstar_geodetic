@@ -90,6 +90,11 @@ mod geodetic;
 
 pub use geodetic::*;
 
+/// C-ABI bindings over the geodetic trees. Present only with the `ffi` feature, which pulls
+/// in `std`; see the module docs for the ownership and error-handling rules.
+#[cfg(feature = "ffi")]
+pub mod ffi;
+
 /// Compiles and runs the code examples in `README.md` as doctests, keeping them in step
 /// with the API. Only present during doctest builds; it is not part of the public API.
 #[cfg(doctest)]
