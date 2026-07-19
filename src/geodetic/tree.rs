@@ -202,16 +202,23 @@ impl<G: GeodeticObject> GeodeticRTree<G> {
 
     // --- nearest neighbour (metres out) ---
 
-    /// Returns the nearest geometry to `query`, or `None` if the tree is empty.
+    /// Returns the nearest geometry to `query`, or `None` if the tree is empty
+    /// or `query` has a non-finite coordinate.
     pub fn nearest_neighbor(&self, query: GeodeticCoord) -> Option<&G> {
+        if !finite(query) {
+            return None;
+        }
         self.inner.nearest_neighbor(UnitVec::from(query))
     }
 
     /// Returns the nearest geometry to `query` together with its **minimum** great-circle
     /// distance in **metres** (to the nearest point of the geometry – which for a leaf
     /// type may be on the interior of an edge, not only a vertex), or `None` if the tree
-    /// is empty.
+    /// is empty or `query` has a non-finite coordinate.
     pub fn nearest_neighbor_with_distance(&self, query: GeodeticCoord) -> Option<(&G, f64)> {
+        if !finite(query) {
+            return None;
+        }
         self.inner
             .nearest_neighbor_iter_with_distance_2(UnitVec::from(query))
             .next()
@@ -219,40 +226,61 @@ impl<G: GeodeticObject> GeodeticRTree<G> {
     }
 
     /// Returns all geometries sharing the minimum distance to `query` (ties), or an
-    /// empty vector if the tree is empty.
+    /// empty vector if the tree is empty or `query` has a non-finite coordinate.
     pub fn nearest_neighbors(&self, query: GeodeticCoord) -> Vec<&G> {
+        if !finite(query) {
+            return Vec::new();
+        }
         let q = UnitVec::from(query);
         self.inner.nearest_neighbors(&q)
     }
 
     /// Returns an iterator over all geometries in non-decreasing distance order.
+    /// A non-finite query yields nothing.
     pub fn nearest_neighbor_iter(&self, query: GeodeticCoord) -> impl Iterator<Item = &G> + '_ {
-        self.inner.nearest_neighbor_iter(UnitVec::from(query))
+        finite(query)
+            .then(move || self.inner.nearest_neighbor_iter(UnitVec::from(query)))
+            .into_iter()
+            .flatten()
     }
 
     /// Returns an iterator over `(geometry, distance_in_metres)` in non-decreasing
-    /// distance order.
+    /// distance order. A non-finite query yields nothing.
     pub fn nearest_neighbor_iter_with_distance(
         &self,
         query: GeodeticCoord,
     ) -> impl Iterator<Item = (&G, f64)> + '_ {
-        self.inner
-            .nearest_neighbor_iter_with_distance_2(UnitVec::from(query))
-            .map(|(g, c2)| (g, squared_chord_to_metres(c2)))
+        finite(query)
+            .then(move || {
+                self.inner
+                    .nearest_neighbor_iter_with_distance_2(UnitVec::from(query))
+                    .map(|(g, c2)| (g, squared_chord_to_metres(c2)))
+            })
+            .into_iter()
+            .flatten()
     }
 
     // --- radius query (metres) ---
 
     /// Returns an iterator over all geometries within `radius_metres` great-circle
     /// metres of `query` (by nearest point), in arbitrary order.
+    ///
+    /// A negative or NaN radius yields nothing (the set of points within a negative
+    /// distance is empty), as does a non-finite query.
     pub fn locate_within_distance(
         &self,
         query: GeodeticCoord,
         radius_metres: f64,
     ) -> impl Iterator<Item = &G> + '_ {
-        let threshold = metres_to_squared_chord(radius_metres);
-        self.inner
-            .locate_within_distance(UnitVec::from(query), threshold)
+        let valid = finite(query) && radius_metres >= 0.0;
+        valid
+            .then(move || {
+                let threshold = metres_to_squared_chord(radius_metres);
+                self.inner
+                    .locate_within_distance(UnitVec::from(query), threshold)
+            })
+            .into_iter()
+            .flatten()
     }
 
     // --- advanced read-only traversal ---
@@ -338,6 +366,12 @@ impl GeodeticRTree<GeodeticPoint> {
         lower: GeodeticCoord,
         upper: GeodeticCoord,
     ) -> impl Iterator<Item = &GeodeticPoint> + '_ {
+        debug_assert!(
+            lower.lat <= upper.lat,
+            "locate_in_rectangle requires lower.lat <= upper.lat (got {} > {})",
+            lower.lat,
+            upper.lat
+        );
         let bounding_box = rectangle_bounding_box(lower, upper);
         self.inner
             .locate_in_envelope_intersecting(bounding_box)
@@ -361,7 +395,8 @@ impl GeodeticRTree<GeodeticPoint> {
 #[cfg(feature = "wgs84")]
 impl GeodeticRTree<GeodeticPoint> {
     /// Returns the geodesic nearest point to `query` on `ellipsoid`, or `None` if the
-    /// tree is empty. See [`Self::nearest_neighbor_with_distance_on_ellipsoid`] for the
+    /// tree is empty or `query` has a non-finite coordinate. See
+    /// [`Self::nearest_neighbor_with_distance_on_ellipsoid`] for the
     /// metric.
     pub fn nearest_neighbor_on_ellipsoid(
         &self,
@@ -373,7 +408,8 @@ impl GeodeticRTree<GeodeticPoint> {
     }
 
     /// Returns the geodesic nearest point to `query` on `ellipsoid` together with its
-    /// geodesic distance in **metres**, or `None` if the tree is empty.
+    /// geodesic distance in **metres**, or `None` if the tree is empty or `query` has a
+    /// non-finite coordinate.
     ///
     /// Candidates are visited in spherical-distance order and refined to the geodesic
     /// distance; the walk stops once the next candidate's geodesic lower bound exceeds
@@ -403,6 +439,9 @@ impl GeodeticRTree<GeodeticPoint> {
         query: GeodeticCoord,
         ellipsoid: Ellipsoid,
     ) -> Option<(&GeodeticPoint, f64)> {
+        if !finite(query) {
+            return None;
+        }
         let geoid = geoid_for(ellipsoid);
         let margin = geodesic_spherical_margin(ellipsoid);
         let mut best: Option<(&GeodeticPoint, f64)> = None;
@@ -433,6 +472,9 @@ impl GeodeticRTree<GeodeticPoint> {
     /// each candidate is kept only if its exact geodesic distance is within
     /// `radius_metres`.
     ///
+    /// A negative or NaN radius yields nothing (the set of points within a negative
+    /// distance is empty), as does a non-finite query.
+    ///
     /// # Example
     ///
     /// ```
@@ -458,12 +500,20 @@ impl GeodeticRTree<GeodeticPoint> {
         radius_metres: f64,
         ellipsoid: Ellipsoid,
     ) -> impl Iterator<Item = &GeodeticPoint> + '_ {
-        let geoid = geoid_for(ellipsoid);
-        let margin = geodesic_spherical_margin(ellipsoid);
-        let threshold = metres_to_squared_chord(radius_fetch_metres(radius_metres, margin));
-        self.inner
-            .locate_within_distance(UnitVec::from(query), threshold)
-            .filter(move |point| geodesic_metres(&geoid, query, point.coord()) <= radius_metres)
+        let valid = finite(query) && radius_metres >= 0.0;
+        valid
+            .then(move || {
+                let geoid = geoid_for(ellipsoid);
+                let margin = geodesic_spherical_margin(ellipsoid);
+                let threshold = metres_to_squared_chord(radius_fetch_metres(radius_metres, margin));
+                self.inner
+                    .locate_within_distance(UnitVec::from(query), threshold)
+                    .filter(move |point| {
+                        geodesic_metres(&geoid, query, point.coord()) <= radius_metres
+                    })
+            })
+            .into_iter()
+            .flatten()
     }
 
     /// Returns the WGS84-ellipsoid geodesic nearest point to `query`, or `None` if the
@@ -540,6 +590,13 @@ impl GeodeticRTree<GeodeticPoint> {
 /// [`squared_chord_to_metres`] directly.
 pub fn envelope_distance_metres(query: GeodeticCoord, envelope: &AABB<UnitVec>) -> f64 {
     squared_chord_to_metres(envelope.distance_2(&UnitVec::from(query)))
+}
+
+/// NaN coordinates embed to an all-NaN vector whose incomparable distances would
+/// panic inside the nearest-neighbour heap ordering; rejecting them at the query
+/// boundary makes every query method fail the same way (an empty result) instead.
+fn finite(query: GeodeticCoord) -> bool {
+    query.lon.is_finite() && query.lat.is_finite()
 }
 
 #[cfg(test)]
@@ -749,6 +806,41 @@ mod spheroid_tests {
         (0..n)
             .map(|_| GeodeticPoint::new(draw_lon(tc), draw_lat(tc)))
             .collect()
+    }
+
+    /// The geodesic variants reject degenerate queries the same way as the
+    /// spherical ones: an empty result, never a heap panic.
+    #[test]
+    fn wgs84_non_finite_query_and_negative_radius_yield_nothing() {
+        let tree = GeodeticRTree::bulk_load(vec![
+            GeodeticPoint::new(0.0, 0.0),
+            GeodeticPoint::new(10.0, 10.0),
+        ]);
+        for q in [
+            coord(f64::NAN, 0.0),
+            coord(0.0, f64::NAN),
+            coord(f64::INFINITY, 0.0),
+        ] {
+            assert!(tree.nearest_neighbor_wgs84(q).is_none());
+            assert!(tree.nearest_neighbor_with_distance_wgs84(q).is_none());
+            assert_eq!(tree.locate_within_distance_wgs84(q, 1e6).count(), 0);
+        }
+        assert_eq!(
+            tree.locate_within_distance_wgs84(coord(0.0, 0.0), -5.0)
+                .count(),
+            0
+        );
+        assert_eq!(
+            tree.locate_within_distance_wgs84(coord(0.0, 0.0), f64::NAN)
+                .count(),
+            0
+        );
+        // Zero radius still matches the coincident point (inclusive bound).
+        assert_eq!(
+            tree.locate_within_distance_wgs84(coord(0.0, 0.0), 0.0)
+                .count(),
+            1
+        );
     }
 
     #[test]

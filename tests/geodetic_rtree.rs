@@ -506,3 +506,52 @@ fn seam_cluster_forms_internal_node_and_matches_brute_force() {
     assert_matches_brute_force(&points, coord(180.0, -18.0), 400_000.0);
     assert_matches_brute_force(&points, coord(-179.0, -19.0), 300_000.0);
 }
+
+// ---------------------------------------------------------------------------
+// Degenerate inputs: non-finite queries, negative radii
+// ---------------------------------------------------------------------------
+
+/// A non-finite query must not panic the branch-and-bound heap: every query
+/// method returns an empty result instead.
+#[test]
+fn non_finite_query_yields_nothing_instead_of_panicking() {
+    let tree = GeodeticRTree::bulk_load(vec![
+        GeodeticPoint::new(0.0, 0.0),
+        GeodeticPoint::new(10.0, 10.0),
+        GeodeticPoint::new(-20.0, 40.0),
+    ]);
+    for q in [
+        coord(f64::NAN, 0.0),
+        coord(0.0, f64::NAN),
+        coord(f64::INFINITY, 0.0),
+    ] {
+        assert!(tree.nearest_neighbor(q).is_none());
+        assert!(tree.nearest_neighbor_with_distance(q).is_none());
+        assert!(tree.nearest_neighbors(q).is_empty());
+        assert_eq!(tree.nearest_neighbor_iter(q).count(), 0);
+        assert_eq!(tree.nearest_neighbor_iter_with_distance(q).count(), 0);
+        assert_eq!(tree.locate_within_distance(q, 1e6).count(), 0);
+    }
+}
+
+/// The set of points within a negative radius is empty by definition; a
+/// coincident point must not slip through via the zero-threshold clamp.
+#[test]
+fn negative_radius_yields_nothing() {
+    let tree = GeodeticRTree::bulk_load(vec![GeodeticPoint::new(10.0, 20.0)]);
+    assert_eq!(
+        tree.locate_within_distance(coord(10.0, 20.0), -5.0).count(),
+        0
+    );
+    // Zero radius still matches the coincident point (inclusive bound).
+    assert_eq!(
+        tree.locate_within_distance(coord(10.0, 20.0), 0.0).count(),
+        1
+    );
+    // A NaN radius also yields nothing.
+    assert_eq!(
+        tree.locate_within_distance(coord(10.0, 20.0), f64::NAN)
+            .count(),
+        0
+    );
+}
