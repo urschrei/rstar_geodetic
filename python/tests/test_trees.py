@@ -3,7 +3,7 @@
 import math
 
 import pytest
-import rstar_geodetic as rg
+import rtree_geodetic as rg
 
 CAPITALS = [
     (-0.1278, 51.5074),  # 0 London

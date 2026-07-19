@@ -1,6 +1,6 @@
 //! Python bindings for `rstar_geodetic`, built with PyO3 and maturin.
 //!
-//! The compiled extension is `rstar_geodetic._rstar_geodetic`; the `rstar_geodetic`
+//! The compiled extension is `rtree_geodetic._rtree_geodetic`; the `rtree_geodetic`
 //! package re-exports its public names. See the package `__init__.py` and the crate
 //! README for the Python-level API.
 
@@ -14,7 +14,7 @@ mod tree;
 /// The extension module. Its name must match the `[lib] name` and the final component of
 /// `module-name` in `pyproject.toml`.
 #[pymodule]
-fn _rstar_geodetic(module: &Bound<'_, PyModule>) -> PyResult<()> {
+fn _rtree_geodetic(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add("__version__", env!("CARGO_PKG_VERSION"))?;
     module.add(
         "GeodeticError",

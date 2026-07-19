@@ -1,7 +1,7 @@
 """Inbound parsing of the __geo_interface__ protocol and GeoJSON mappings."""
 
 import pytest
-import rstar_geodetic as rg
+import rtree_geodetic as rg
 
 
 class FakePoint:

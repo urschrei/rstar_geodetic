@@ -5,7 +5,7 @@ metres. The classes interoperate with shapely and geopandas through the
 ``__geo_interface__`` protocol.
 """
 
-from ._rstar_geodetic import (
+from ._rtree_geodetic import (
     GeodeticError,
     GeodeticLineStringTree,
     GeodeticPointTree,

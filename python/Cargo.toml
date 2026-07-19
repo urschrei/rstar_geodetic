@@ -1,5 +1,5 @@
 [package]
-name = "rstar_geodetic_python"
+name = "rtree_geodetic_python"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.85"
@@ -8,9 +8,9 @@ license = "MIT OR Apache-2.0"
 publish = false
 
 [lib]
-# The compiled extension module. Named `_rstar_geodetic` so it does not clash with the
-# root crate and matches `module-name = "rstar_geodetic._rstar_geodetic"` in pyproject.
-name = "_rstar_geodetic"
+# The compiled extension module. Named `_rtree_geodetic` so it does not clash with the
+# root crate and matches `module-name = "rtree_geodetic._rtree_geodetic"` in pyproject.
+name = "_rtree_geodetic"
 crate-type = ["cdylib"]
 
 [dependencies]

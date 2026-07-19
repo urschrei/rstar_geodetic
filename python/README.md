@@ -1,4 +1,4 @@
-# rstar-geodetic
+# rtree-geodetic
 
 Python bindings for [`rstar_geodetic`](https://github.com/urschrei/rstar_geodetic), a
 geodetic (longitude/latitude) R-tree with great-circle and WGS84 nearest-neighbour and
@@ -12,7 +12,7 @@ metres. Queries return integer input positions (the shapely `STRtree` convention
 ## Install
 
 ```sh
-pip install rstar-geodetic
+pip install rtree-geodetic
 ```
 
 Wheels are built for CPython 3.10 and newer (a single abi3 wheel per platform).
@@ -25,7 +25,7 @@ objects exposing `__geo_interface__` (shapely geometries), or a single object wh
 `GeometryCollection`, or a `FeatureCollection`).
 
 ```python
-from rstar_geodetic import GeodeticPointTree
+from rtree_geodetic import GeodeticPointTree
 
 tree = GeodeticPointTree([
     (-0.1278, 51.5074),  # 0 London
@@ -55,7 +55,7 @@ Linestring and polygon trees measure the minimum great-circle distance to the ge
 (zero for a query inside a polygon):
 
 ```python
-from rstar_geodetic import GeodeticLineStringTree, GeodeticPolygonTree
+from rtree_geodetic import GeodeticLineStringTree, GeodeticPolygonTree
 
 lines = GeodeticLineStringTree([[(0, 0), (1, 1), (2, 0)], [(10, 10), (11, 11)]])
 lines.nearest((1.0, 0.5))                       # 0
@@ -73,7 +73,7 @@ them, and trees accept shapely geometries and geopandas `GeoSeries` directly:
 ```python
 import geopandas as gpd
 from shapely.geometry import Point, shape
-from rstar_geodetic import GeodeticPointTree
+from rtree_geodetic import GeodeticPointTree
 
 series = gpd.GeoSeries([Point(-0.1278, 51.5074), Point(2.3522, 48.8566)])
 tree = GeodeticPointTree(series)

@@ -3,7 +3,7 @@ requires = ["maturin>=1.7,<2.0"]
 build-backend = "maturin"
 
 [project]
-name = "rstar-geodetic"
+name = "rtree-geodetic"
 version = "0.1.0"
 description = "A geodetic R-tree with great-circle and WGS84 nearest-neighbour and radius queries"
 readme = "README.md"
@@ -23,7 +23,7 @@ classifiers = [
 Repository = "https://github.com/urschrei/rstar_geodetic"
 
 [tool.maturin]
-module-name = "rstar_geodetic._rstar_geodetic"
+module-name = "rtree_geodetic._rtree_geodetic"
 python-source = "python"
 # Supplies pyo3's `extension-module` only for the wheel build, leaving plain `cargo`
 # builds able to link libpython for clippy and tests.

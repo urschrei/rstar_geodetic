@@ -5,7 +5,7 @@ use pyo3::create_exception;
 use pyo3::exceptions::PyValueError;
 
 create_exception!(
-    rstar_geodetic,
+    rtree_geodetic,
     GeodeticError,
     PyValueError,
     "Raised when coordinates or a geometry fail validation (out-of-range longitude or \

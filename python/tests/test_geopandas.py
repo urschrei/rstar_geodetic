@@ -3,7 +3,7 @@
 import pytest
 
 gpd = pytest.importorskip("geopandas")
-import rstar_geodetic as rg  # noqa: E402
+import rtree_geodetic as rg  # noqa: E402
 from shapely.geometry import Point  # noqa: E402
 
 
