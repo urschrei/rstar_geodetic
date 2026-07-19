@@ -3,7 +3,9 @@ name: Build Python wheels
 on:
   push:
     tags:
-      - "*"
+      # Python release tags only (for example py-v0.1.0), so Rust crate release
+      # tags never trigger a PyPI publish.
+      - "py-v*"
   workflow_dispatch:
 
 permissions:
@@ -51,3 +53,26 @@ jobs:
         with:
           name: sdist
           path: python/dist/*.tar.gz
+
+  publish:
+    name: Publish to PyPI
+    # Publish only on tag pushes, not manual wheel-build runs.
+    if: startsWith(github.ref, 'refs/tags/py-v')
+    needs:
+      - wheels
+      - sdist
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      # Required for PyPI trusted publishing (OIDC).
+      id-token: write
+    steps:
+      - name: Download wheels and sdist
+        uses: actions/download-artifact@v7
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist
