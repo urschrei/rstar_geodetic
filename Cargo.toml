@@ -77,3 +77,13 @@ harness = false
 name = "geodetic_wgs84"
 harness = false
 required-features = ["wgs84"]
+
+# Property tests are numeric-heavy; without optimisation the hegel suites dominate
+# test time (one polygon property takes over 20 s at opt-level 0). Level 1 for the
+# crate keeps compile times reasonable; full optimisation for dependencies (rstar,
+# hegel) where the hot loops live.
+[profile.test]
+opt-level = 1
+
+[profile.test.package."*"]
+opt-level = 2
