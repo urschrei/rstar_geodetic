@@ -82,7 +82,7 @@
 //!   [`lwgeodetic.c`](https://github.com/postgis/postgis/blob/master/liblwgeom/lwgeodetic.c),
 //!   and [Uber H3](https://h3geo.org/).
 
-#![cfg_attr(not(test), no_std)]
+#![cfg_attr(not(any(test, feature = "std")), no_std)]
 
 extern crate alloc;
 

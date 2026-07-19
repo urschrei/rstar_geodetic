@@ -33,6 +33,10 @@ geo-types = { version = "0.7", optional = true, default-features = false }
 
 [features]
 default = ["geo-types"]
+# Opts the crate into `std`. Internal enabler for `ffi` (which needs `std::panic` and
+# raw-pointer heap handoff); not something a downstream user of the index needs directly.
+# The base crate stays no_std unless this (transitively via `ffi`) is enabled.
+std = []
 # Spheroidal (WGS84) geodesic refine for the point tree, layered on the spherical
 # index. Pulls in `geographiclib-rs` and so requires `std`; the base crate stays
 # no_std.
