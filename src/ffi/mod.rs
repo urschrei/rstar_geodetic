@@ -23,13 +23,60 @@
 
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
-use crate::GeodeticCoord;
+use rstar::{AABB, PointDistance, RTreeObject};
+
+use crate::{GeodeticCoord, UnitVec};
 
 mod construct;
 mod error;
 
-pub use construct::{RsgPointTree, rsg_point_tree_free, rsg_point_tree_new, rsg_point_tree_size};
+pub use construct::{
+    RsgLineTree, RsgPointTree, RsgPolygonTree, rsg_line_tree_free, rsg_line_tree_new,
+    rsg_line_tree_size, rsg_point_tree_free, rsg_point_tree_new, rsg_point_tree_size,
+    rsg_polygon_tree_free, rsg_polygon_tree_new, rsg_polygon_tree_size,
+};
 pub use error::{RsgStatus, rsg_status_message};
+
+/// A leaf that carries a geometry alongside its original input position, delegating the
+/// two index traits to the geometry. The position rides along so a query result reports
+/// the caller's input index directly (the shapely STRtree convention). Used for the
+/// linestring and polygon trees; the point tree recovers positions by coordinate instead
+/// so it can keep the concrete-type rectangle and wgs84 queries.
+pub(crate) struct IndexedLeaf<G> {
+    pub(crate) geometry: G,
+    // Read by the query module (a later step) to report the caller's input index.
+    #[allow(dead_code)]
+    pub(crate) index: usize,
+}
+
+impl<G> RTreeObject for IndexedLeaf<G>
+where
+    G: RTreeObject<Envelope = AABB<UnitVec>>,
+{
+    type Envelope = AABB<UnitVec>;
+
+    fn envelope(&self) -> Self::Envelope {
+        self.geometry.envelope()
+    }
+}
+
+impl<G> PointDistance for IndexedLeaf<G>
+where
+    G: RTreeObject<Envelope = AABB<UnitVec>> + PointDistance,
+{
+    fn distance_2(&self, point: &UnitVec) -> f64 {
+        self.geometry.distance_2(point)
+    }
+
+    fn contains_point(&self, point: &UnitVec) -> bool {
+        self.geometry.contains_point(point)
+    }
+
+    fn distance_2_if_less_or_equal(&self, point: &UnitVec, max_distance_2: f64) -> Option<f64> {
+        self.geometry
+            .distance_2_if_less_or_equal(point, max_distance_2)
+    }
+}
 
 /// Runs `body` at an ABI boundary, converting any panic into
 /// [`RsgStatus::RSG_ERR_INTERNAL_PANIC`] so it never unwinds across the C ABI.
