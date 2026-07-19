@@ -6,10 +6,21 @@
 
 use pyo3::prelude::*;
 
+mod error;
+mod geo_interface;
+mod geometry;
+
 /// The extension module. Its name must match the `[lib] name` and the final component of
 /// `module-name` in `pyproject.toml`.
 #[pymodule]
 fn _rstar_geodetic(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add("__version__", env!("CARGO_PKG_VERSION"))?;
+    module.add(
+        "GeodeticError",
+        module.py().get_type::<error::GeodeticError>(),
+    )?;
+    module.add_class::<geometry::Point>()?;
+    module.add_class::<geometry::LineString>()?;
+    module.add_class::<geometry::Polygon>()?;
     Ok(())
 }
