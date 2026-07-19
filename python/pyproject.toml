@@ -10,7 +10,9 @@ description = "A geodetic R-tree with great-circle and WGS84 nearest-neighbour a
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT OR Apache-2.0"
-license-files = ["LICENSE-MIT", "LICENSE-APACHE"]
+# No `license-files` key: maturin bundles the workspace-root LICENSE-MIT and
+# LICENSE-APACHE into the sdist automatically, and naming copies here collides
+# with that auto-inclusion (the sdist build fails on the duplicate paths).
 authors = [{ name = "Stephan Hügel", email = "urschrei@gmail.com" }]
 maintainers = [{ name = "Stephan Hügel", email = "urschrei@gmail.com" }]
 keywords = [
