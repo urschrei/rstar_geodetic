@@ -43,6 +43,8 @@ pub use query::{
     rsg_point_tree_within_distance, rsg_polygon_tree_nearest_neighbor,
     rsg_polygon_tree_within_distance,
 };
+#[cfg(feature = "wgs84")]
+pub use query::{rsg_point_tree_nearest_neighbor_wgs84, rsg_point_tree_within_distance_wgs84};
 
 /// A leaf that carries a geometry alongside its original input position, delegating the
 /// two index traits to the geometry. The position rides along so a query result reports

@@ -409,6 +409,92 @@ pub unsafe extern "C" fn rsg_indices_free(items: *mut usize, len: usize) {
     drop(unsafe { Box::from_raw(core::ptr::slice_from_raw_parts_mut(items, len)) });
 }
 
+// --- wgs84 (ellipsoidal geodesic) refine, point trees only ---
+
+/// Writes the nearest point to `(lon, lat)` by WGS84-ellipsoid geodesic distance to
+/// `*out_neighbor`, setting `*out_found`. The distance is exact geodesic metres, not the
+/// spherical approximation. On an empty tree `*out_found` is false.
+///
+/// # Safety
+///
+/// `tree` must be a valid handle; `out_neighbor` and `out_found` valid, writable pointers.
+#[cfg(feature = "wgs84")]
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rsg_point_tree_nearest_neighbor_wgs84(
+    tree: *const RsgPointTree,
+    lon: f64,
+    lat: f64,
+    out_neighbor: *mut RsgNeighbor,
+    out_found: *mut bool,
+) -> RsgStatus {
+    ffi_guard(|| {
+        if tree.is_null() || out_neighbor.is_null() || out_found.is_null() {
+            return RsgStatus::RSG_ERR_NULL_ARGUMENT;
+        }
+        // Safety: `tree` was checked non-null above.
+        let handle = unsafe { &*tree };
+        let query = GeodeticCoord { lon, lat };
+        let result =
+            handle
+                .tree
+                .nearest_neighbor_with_distance_wgs84(query)
+                .map(|(point, metres)| RsgNeighbor {
+                    index: handle.index_by_coord[&coord_key(point.coord())][0],
+                    distance_metres: metres,
+                });
+        // Safety: both out-pointers were checked non-null above.
+        unsafe { write_nearest(result, out_neighbor, out_found) };
+        RsgStatus::RSG_OK
+    })
+}
+
+/// Writes every point within `radius_metres` WGS84-ellipsoid geodesic metres of
+/// `(lon, lat)` to a fresh buffer at `*out_items` (length `*out_len`), freed with
+/// [`rsg_neighbors_free`]. Each distance is exact geodesic metres.
+///
+/// # Safety
+///
+/// `tree` must be a valid handle; `out_items` and `out_len` valid, writable pointers.
+#[cfg(feature = "wgs84")]
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rsg_point_tree_within_distance_wgs84(
+    tree: *const RsgPointTree,
+    lon: f64,
+    lat: f64,
+    radius_metres: f64,
+    out_items: *mut *mut RsgNeighbor,
+    out_len: *mut usize,
+) -> RsgStatus {
+    ffi_guard(|| {
+        if tree.is_null() || out_items.is_null() || out_len.is_null() {
+            return RsgStatus::RSG_ERR_NULL_ARGUMENT;
+        }
+        // Safety: `tree` was checked non-null above.
+        let handle = unsafe { &*tree };
+        let query = GeodeticCoord { lon, lat };
+        let mut seen: HashSet<(u64, u64)> = HashSet::new();
+        let mut neighbors: Vec<RsgNeighbor> = Vec::new();
+        for point in handle
+            .tree
+            .locate_within_distance_wgs84(query, radius_metres)
+        {
+            let key = coord_key(point.coord());
+            if seen.insert(key) {
+                let metres = crate::geodesic_distance_wgs84(query, point.coord());
+                for &index in &handle.index_by_coord[&key] {
+                    neighbors.push(RsgNeighbor {
+                        index,
+                        distance_metres: metres,
+                    });
+                }
+            }
+        }
+        // Safety: both out-pointers were checked non-null above.
+        unsafe { write_neighbor_buffer(neighbors, out_items, out_len) };
+        RsgStatus::RSG_OK
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -626,5 +712,102 @@ mod tests {
     fn free_null_buffers_are_no_ops() {
         unsafe { rsg_neighbors_free(ptr::null_mut(), 0) };
         unsafe { rsg_indices_free(ptr::null_mut(), 0) };
+    }
+}
+
+#[cfg(all(test, feature = "wgs84"))]
+mod wgs84_tests {
+    use super::*;
+    use crate::ffi::construct::{rsg_point_tree_free, rsg_point_tree_new};
+    use crate::geodesic_distance_wgs84;
+    use core::ptr;
+
+    const CAPITALS: [f64; 8] = [
+        -0.1278, 51.5074, 2.3522, 48.8566, 13.4050, 52.5200, -3.7038, 40.4168,
+    ];
+
+    fn point_tree(coords: &[f64]) -> *mut RsgPointTree {
+        let mut tree: *mut RsgPointTree = ptr::null_mut();
+        assert_eq!(
+            unsafe { rsg_point_tree_new(coords.as_ptr(), coords.len() / 2, &mut tree) },
+            RsgStatus::RSG_OK
+        );
+        tree
+    }
+
+    #[test]
+    fn nearest_wgs84_matches_direct_geodesic() {
+        let tree = point_tree(&CAPITALS);
+        let mut neighbor = RsgNeighbor {
+            index: 9,
+            distance_metres: -1.0,
+        };
+        let mut found = false;
+        let status = unsafe {
+            rsg_point_tree_nearest_neighbor_wgs84(tree, 2.0, 49.0, &mut neighbor, &mut found)
+        };
+        assert_eq!(status, RsgStatus::RSG_OK);
+        assert!(found);
+        assert_eq!(neighbor.index, 1); // Paris
+        let expected = geodesic_distance_wgs84(
+            GeodeticCoord {
+                lon: 2.0,
+                lat: 49.0,
+            },
+            GeodeticCoord {
+                lon: 2.3522,
+                lat: 48.8566,
+            },
+        );
+        assert!((neighbor.distance_metres - expected).abs() < 1e-6);
+        unsafe { rsg_point_tree_free(tree) };
+    }
+
+    #[test]
+    fn within_distance_wgs84_filters_by_geodesic() {
+        let tree = point_tree(&CAPITALS);
+        let mut items: *mut RsgNeighbor = ptr::null_mut();
+        let mut len = 0usize;
+        // Within 100 km of a point near Paris: Paris only.
+        let status = unsafe {
+            rsg_point_tree_within_distance_wgs84(tree, 2.0, 49.0, 100_000.0, &mut items, &mut len)
+        };
+        assert_eq!(status, RsgStatus::RSG_OK);
+        assert_eq!(len, 1);
+        let slice = unsafe { core::slice::from_raw_parts(items, len) };
+        assert_eq!(slice[0].index, 1);
+        unsafe { rsg_neighbors_free(items, len) };
+        unsafe { rsg_point_tree_free(tree) };
+    }
+
+    #[test]
+    fn wgs84_empty_tree_and_null_checks() {
+        let tree = point_tree(&[]);
+        let mut neighbor = RsgNeighbor {
+            index: 0,
+            distance_metres: 0.0,
+        };
+        let mut found = true;
+        assert_eq!(
+            unsafe {
+                rsg_point_tree_nearest_neighbor_wgs84(tree, 0.0, 0.0, &mut neighbor, &mut found)
+            },
+            RsgStatus::RSG_OK
+        );
+        assert!(!found);
+        assert_eq!(
+            unsafe {
+                rsg_point_tree_within_distance_wgs84(
+                    ptr::null(),
+                    0.0,
+                    0.0,
+                    1.0,
+                    ptr::null_mut(),
+                    ptr::null_mut(),
+                )
+            },
+            RsgStatus::RSG_ERR_NULL_ARGUMENT
+        );
+        unsafe { rsg_point_tree_free(tree) };
     }
 }
