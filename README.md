@@ -13,6 +13,9 @@ special cases are required, and nearest-neighbour ordering matches great-circle 
 leaves. Coordinates are longitude first, latitude second (the `geo`/OGC convention),
 taken in degrees; distances are returned in metres.
 
+## Note
+This library may become part of rstar in the future. There are currently no plans to publish a crate.
+
 ## Examples
 
 ### Points
