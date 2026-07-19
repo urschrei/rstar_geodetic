@@ -702,7 +702,7 @@ dev = [
 bench = [{ name = "rtree", specifier = ">=1.4.1" }]
 dev = [
     { name = "geopandas", specifier = ">=1" },
-    { name = "maturin", specifier = ">=1.7,<2.0" },
+    { name = "maturin", specifier = ">=1.8,<2.0" },
     { name = "pytest", specifier = ">=8" },
     { name = "ruff", specifier = ">=0.6" },
     { name = "shapely", specifier = ">=2" },

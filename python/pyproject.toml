@@ -1,5 +1,6 @@
 [build-system]
-requires = ["maturin>=1.7,<2.0"]
+# 1.8 is the first release emitting PEP 639 licence metadata (Metadata-Version 2.4).
+requires = ["maturin>=1.8,<2.0"]
 build-backend = "maturin"
 
 [project]
@@ -8,19 +9,52 @@ version = "0.1.0"
 description = "A geodetic R-tree with great-circle and WGS84 nearest-neighbour and radius queries"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT OR Apache-2.0" }
+license = "MIT OR Apache-2.0"
+license-files = ["LICENSE-MIT", "LICENSE-APACHE"]
 authors = [{ name = "Stephan Hügel", email = "urschrei@gmail.com" }]
-keywords = ["rtree", "geodetic", "spatial", "geo", "nearest-neighbour"]
+maintainers = [{ name = "Stephan Hügel", email = "urschrei@gmail.com" }]
+keywords = [
+    "rtree",
+    "r-tree",
+    "geodetic",
+    "spatial",
+    "spatial-index",
+    "geospatial",
+    "geo",
+    "gis",
+    "nearest-neighbour",
+    "great-circle",
+    "geodesic",
+    "wgs84",
+    "haversine",
+    "geo-interface",
+    "shapely",
+    "geopandas",
+]
 classifiers = [
-    "Programming Language :: Rust",
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Rust",
     "Topic :: Scientific/Engineering :: GIS",
-    "License :: OSI Approved :: MIT License",
-    "License :: OSI Approved :: Apache Software License",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
 ]
 
 [project.urls]
 Repository = "https://github.com/urschrei/rstar_geodetic"
+Tracker = "https://github.com/urschrei/rstar_geodetic/issues"
+Documentation = "https://github.com/urschrei/rstar_geodetic/blob/main/python/README.md"
+Changelog = "https://github.com/urschrei/rstar_geodetic/blob/main/CHANGELOG.md"
 
 [tool.maturin]
 module-name = "rtree_geodetic._rtree_geodetic"
@@ -43,7 +77,11 @@ cache-keys = [
 bench = [
     "rtree>=1.4.1",
 ]
-dev = ["pytest>=8", "shapely>=2", "geopandas>=1", "maturin>=1.7,<2.0", "ruff>=0.6"]
+dev = ["pytest>=8", "shapely>=2", "geopandas>=1", "maturin>=1.8,<2.0", "ruff>=0.6"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
 
 [tool.ruff]
 target-version = "py310"
