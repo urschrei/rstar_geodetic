@@ -29,6 +29,7 @@ use crate::{GeodeticCoord, UnitVec};
 
 mod construct;
 mod error;
+mod query;
 
 pub use construct::{
     RsgLineTree, RsgPointTree, RsgPolygonTree, rsg_line_tree_free, rsg_line_tree_new,
@@ -36,6 +37,12 @@ pub use construct::{
     rsg_polygon_tree_free, rsg_polygon_tree_new, rsg_polygon_tree_size,
 };
 pub use error::{RsgStatus, rsg_status_message};
+pub use query::{
+    RsgNeighbor, rsg_indices_free, rsg_line_tree_nearest_neighbor, rsg_line_tree_within_distance,
+    rsg_neighbors_free, rsg_point_tree_in_rectangle, rsg_point_tree_nearest_neighbor,
+    rsg_point_tree_within_distance, rsg_polygon_tree_nearest_neighbor,
+    rsg_polygon_tree_within_distance,
+};
 
 /// A leaf that carries a geometry alongside its original input position, delegating the
 /// two index traits to the geometry. The position rides along so a query result reports
@@ -44,8 +51,6 @@ pub use error::{RsgStatus, rsg_status_message};
 /// so it can keep the concrete-type rectangle and wgs84 queries.
 pub(crate) struct IndexedLeaf<G> {
     pub(crate) geometry: G,
-    // Read by the query module (a later step) to report the caller's input index.
-    #[allow(dead_code)]
     pub(crate) index: usize,
 }
 

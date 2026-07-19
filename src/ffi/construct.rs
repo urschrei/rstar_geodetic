@@ -21,8 +21,6 @@ pub(crate) type CoordIndex = HashMap<(u64, u64), Vec<usize>>;
 pub struct RsgPointTree {
     pub(crate) tree: GeodeticRTree<GeodeticPoint>,
     // Original input positions keyed by coordinate bits, for STRtree-style index recovery.
-    // Read by the query module (a later step).
-    #[allow(dead_code)]
     pub(crate) index_by_coord: CoordIndex,
 }
 
