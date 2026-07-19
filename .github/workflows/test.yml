@@ -77,12 +77,46 @@ jobs:
       - name: Run cargo build for ${{env.NO_STD_TARGET}}
         run: cargo build --target ${{env.NO_STD_TARGET}}
 
+  ffi:
+    name: C API (ffi)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ffi
+      - name: Install cbindgen
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cbindgen
+      - name: Test the ffi and wgs84 features
+        run: cargo test --features ffi,wgs84
+      - name: Lint the ffi and wgs84 features using Clippy
+        run: cargo clippy --features ffi,wgs84 --all-targets -- -D warnings
+      - name: Check the committed C header is up to date
+        run: |
+          mkdir -p target
+          cbindgen --config cbindgen.toml --output target/rstar_geodetic.generated.h .
+          diff -u include/rstar_geodetic.h target/rstar_geodetic.generated.h
+      - name: Build the C library and run the smoke test
+        run: |
+          cargo rustc -p rstar_geodetic --release --features ffi,wgs84 --crate-type cdylib
+          cc examples/c/smoke.c -I include -DRSG_HAVE_WGS84 -L target/release -lrstar_geodetic -o target/rsg_smoke
+          LD_LIBRARY_PATH=target/release target/rsg_smoke
+
   conclusion:
     needs:
       - test
       - check
       - msrv
       - no_std
+      - ffi
     runs-on: ubuntu-latest
     steps:
       - name: Result

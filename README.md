@@ -167,6 +167,45 @@ query methods and the standalone `geodesic_distance`. That feature requires `std
 rstar_geodetic = { version = "0.1", features = ["wgs84"] }
 ```
 
+## C API
+
+The optional `ffi` feature exposes a C-ABI surface over all three tree types: bulk-load
+constructors, nearest-neighbour and within-distance queries, a longitude/latitude rectangle
+query on point trees, and the WGS84 geodesic variants on point trees. It pulls in `std`, so
+it is off by default and the base crate stays `no_std`. Build the C library with the
+committed `justfile`:
+
+```sh
+just ffi-build      # cdylib + staticlib in target/release, with ffi,wgs84
+just ffi-smoke      # compile and run examples/c/smoke.c against the cdylib
+```
+
+The header at [`include/rstar_geodetic.h`](include/rstar_geodetic.h) is generated with
+[cbindgen](https://github.com/mozilla/cbindgen) and committed; `just ffi-check-header`
+regenerates it and fails on drift (also run in CI). The WGS84 entry points are guarded by
+`#if defined(RSG_HAVE_WGS84)`; define `RSG_HAVE_WGS84` when the library is built with the
+`wgs84` feature.
+
+Coordinates are longitude first, latitude second, in degrees, interleaved
+`[lon0, lat0, ...]`; linestrings and polygons add CSR offset arrays (the GeoArrow layout).
+Every fallible function returns an `RsgStatus` (`RSG_OK` is zero); queries write their
+result through out-parameters. Opaque handles are freed with the matching `*_tree_free`, and
+result buffers with `rsg_neighbors_free` or `rsg_indices_free`. The header preamble states
+the full ownership rules.
+
+```c
+double coords[] = { -0.1278, 51.5074, 2.3522, 48.8566 }; /* London, Paris */
+RsgPointTree *tree = NULL;
+if (rsg_point_tree_new(coords, 2, &tree) != RSG_OK) { /* handle error */ }
+
+RsgNeighbor nearest;
+bool found = false;
+rsg_point_tree_nearest_neighbor(tree, 4.9041, 52.3676, &nearest, &found);
+/* nearest.index is the input position; nearest.distance_metres is great-circle metres. */
+
+rsg_point_tree_free(tree);
+```
+
 ## Testing
 
 Property tests use [Hegel](https://crates.io/crates/hegeltest). The arc oracle is

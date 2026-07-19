@@ -1,0 +1,43 @@
+language = "C"
+include_guard = "RSTAR_GEODETIC_H"
+cpp_compat = true
+documentation = true
+documentation_style = "c99"
+usize_is_size_t = true
+style = "type"
+header = """
+/*
+ * rstar_geodetic C API.
+ *
+ * Generated from the Rust `ffi` module by cbindgen; do not edit by hand. Regenerate with
+ * `just ffi-header`. The CI drift check (`just ffi-check-header`) fails if this file is out
+ * of step with the source.
+ *
+ * Ownership and lifetimes:
+ *   - A tree is an opaque handle from a `*_tree_new` constructor, released by the matching
+ *     `*_tree_free`. Passing NULL to a `*_free` function is a no-op.
+ *   - A handle is immutable after construction and is safe to query from several threads.
+ *   - Input arrays (coordinates, CSR offsets) are borrowed for the duration of a call
+ *     only; the caller keeps ownership and may free them once the call returns.
+ *   - A `*_within_distance` or `rsg_point_tree_in_rectangle` call allocates a result
+ *     buffer that the caller must release with `rsg_neighbors_free` or `rsg_indices_free`.
+ *     An empty result is reported as a NULL buffer with length zero.
+ *   - Coordinates are longitude first, latitude second, in degrees. Point arrays are
+ *     interleaved [lon0, lat0, lon1, lat1, ...]; linestrings and polygons use the same
+ *     interleaving with CSR offset arrays (the GeoArrow layout).
+ *   - Every fallible function returns an RsgStatus; RSG_OK (zero) is success. A caught
+ *     panic is reported as RSG_ERR_INTERNAL_PANIC rather than unwinding across the ABI.
+ */
+"""
+
+[parse]
+parse_deps = false
+
+[export]
+# `Ellipsoid` is a pub type of the base crate but is not part of the C API (no function
+# takes or returns one; the wgs84 entry points use WGS84 implicitly), so drop the stray
+# opaque typedef.
+exclude = ["Ellipsoid"]
+
+[defines]
+"feature = wgs84" = "RSG_HAVE_WGS84"
