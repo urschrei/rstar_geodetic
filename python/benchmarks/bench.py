@@ -82,6 +82,13 @@ def row(label: str, value: str) -> None:
     print(f"  {label:<58} {value:>14}")
 
 
+def built_strtree(geoms) -> STRtree:
+    """GEOS builds the STRtree lazily on first query, so force it inside the timing."""
+    tree = STRtree(geoms)
+    tree.query_nearest(Point(0.0, 0.0))
+    return tree
+
+
 def bench_points(num_points: int, num_queries: int) -> None:
     rng = random.Random(SEED)
     coords = uniform_sphere_points(rng, num_points)
@@ -94,8 +101,8 @@ def bench_points(num_points: int, num_queries: int) -> None:
     row("GeodeticPointTree build (from tuples)", f"{t:8.2f} s")
 
     shapely_points = [Point(lon, lat) for lon, lat in coords]
-    strtree, t = timed(STRtree, shapely_points)
-    row("shapely STRtree build", f"{t:8.2f} s")
+    strtree, t = timed(built_strtree, shapely_points)
+    row("shapely STRtree build (forced)", f"{t:8.2f} s")
 
     def stream():
         for i, (lon, lat) in enumerate(coords):
@@ -175,8 +182,8 @@ def bench_extents(num_geoms: int, num_queries: int) -> None:
     print(f"\nLinestrings: {num_geoms:,} short polylines, {num_queries:,} queries")
     tree, t = timed(GeodeticLineStringTree, lines)
     row("GeodeticLineStringTree build (via __geo_interface__)", f"{t:8.2f} s")
-    strtree, t = timed(STRtree, lines)
-    row("shapely STRtree build", f"{t:8.2f} s")
+    strtree, t = timed(built_strtree, lines)
+    row("shapely STRtree build (forced)", f"{t:8.2f} s")
     row(
         "GeodeticLineStringTree nearest (metres to nearest point)",
         f"{per_query_us(tree.nearest, queries):8.1f} us",
@@ -190,8 +197,8 @@ def bench_extents(num_geoms: int, num_queries: int) -> None:
     print(f"\nPolygons: {num_geoms:,} small convex polygons, {num_queries:,} queries")
     tree, t = timed(GeodeticPolygonTree, polys)
     row("GeodeticPolygonTree build (via __geo_interface__)", f"{t:8.2f} s")
-    strtree, t = timed(STRtree, polys)
-    row("shapely STRtree build", f"{t:8.2f} s")
+    strtree, t = timed(built_strtree, polys)
+    row("shapely STRtree build (forced)", f"{t:8.2f} s")
     row(
         "GeodeticPolygonTree nearest (0 m inside)",
         f"{per_query_us(tree.nearest, queries):8.1f} us",

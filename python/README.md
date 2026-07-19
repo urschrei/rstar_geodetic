@@ -98,6 +98,50 @@ Invalid coordinates or geometry (an out-of-range longitude or latitude, a non-fi
 too few vertices, an edge spanning half the sphere, or an unclosed ring) raise
 `GeodeticError`, a subclass of `ValueError`.
 
+## Performance
+
+Measured with [`benchmarks/bench.py`](benchmarks/bench.py) (seeded synthetic data;
+run it with `uv run --group bench python benchmarks/bench.py`) on an Apple M2 Pro,
+Python 3.14, shapely 2.1.2 (GEOS STRtree), rtree 1.4.1 (libspatialindex), release
+build. Datasets: one million points distributed uniformly on the sphere, and one
+hundred thousand small linestrings and polygons, queried per call from Python.
+
+One million points, 10,000 queries:
+
+| Operation | rtree-geodetic | shapely STRtree | Rtree |
+|---|---|---|---|
+| Build | 0.79 s | 0.23 s | 1.63 s |
+| Nearest neighbour, per call | 3.5 us | 7.9 us | 21.4 us |
+| Nearest neighbour, WGS84 geodesic | 2.6 us | not offered | not offered |
+| Within 50 km (radius query, ~16 hits) | 10.5 us | 10.3 us* | not offered |
+
+100,000 extent geometries, 2,000 queries:
+
+| Operation | rtree-geodetic | shapely STRtree |
+|---|---|---|
+| Linestring build | 0.66 s | 0.02 s |
+| Linestring nearest, per call | 4.4 us | 11.1 us |
+| Polygon build | 2.44 s | 0.02 s |
+| Polygon nearest, per call | 7.8 us | 12.6 us |
+
+> [!NOTE] 
+> First, the planar libraries answer a
+different question: they index raw lon/lat degrees, so their distances are in
+degrees and their answers degrade as meridians converge. On the uniform global
+dataset above, the `STRtree` planar nearest neighbour differs from the true geodesic
+nearest neighbour for 10.9% of queries; `rtree-geodetic` returns the geodesically
+correct answer with the distance already in metres (this is the correctness you
+would otherwise get from the PostGIS `geography` type, without a database round
+trip). The starred `STRtree` radius query uses an equator-equivalent degree radius,
+which returns the wrong set away from the equator. Second, shapely's batch API
+(`query_nearest` with an array of geometries) **amortises** the Python boundary to
+5.7 us per query at 1M points; rtree-geodetic currently offers per-call queries **only**.
+
+Build times for rtree-geodetic include validating every coordinate and, for
+extent geometries, precomputing per-edge great-circle envelopes; construction
+currently traverses Python objects (`__geo_interface__` or sequences): a
+numpy / GeoArrow fast path is future work.
+
 ## Licence
 
 Licensed under either of Apache License, Version 2.0 or MIT licence at your option.
