@@ -2,3 +2,15 @@
 .DS_Store
 # hegeltest working state; never commit it
 .hegel/
+
+# Python / maturin
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+/python/dist/
+# The maturin-built extension module, dropped into the package by `maturin develop`.
+/python/python/rstar_geodetic/*.so
+/python/python/rstar_geodetic/*.pyd
+/python/python/rstar_geodetic/*.dylib

@@ -1,0 +1,21 @@
+[package]
+name = "rstar_geodetic_python"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "Python bindings for the rstar_geodetic geodetic R-tree"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[lib]
+# The compiled extension module. Named `_rstar_geodetic` so it does not clash with the
+# root crate and matches `module-name = "rstar_geodetic._rstar_geodetic"` in pyproject.
+name = "_rstar_geodetic"
+crate-type = ["cdylib"]
+
+[dependencies]
+# The WGS84 geodesic queries are compiled in by default for the Python wheels.
+rstar_geodetic = { path = "..", features = ["wgs84"] }
+# `extension-module` is deliberately not enabled here; maturin adds it via
+# `[tool.maturin] features` so `cargo clippy`/`cargo test` still link against libpython.
+pyo3 = { version = "0.29", features = ["abi3-py310"] }

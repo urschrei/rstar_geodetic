@@ -1,0 +1,43 @@
+[build-system]
+requires = ["maturin>=1.7,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "rstar-geodetic"
+version = "0.1.0"
+description = "A geodetic R-tree with great-circle and WGS84 nearest-neighbour and radius queries"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT OR Apache-2.0" }
+authors = [{ name = "Stephan Hügel", email = "urschrei@gmail.com" }]
+keywords = ["rtree", "geodetic", "spatial", "geo", "nearest-neighbour"]
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: GIS",
+    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: Apache Software License",
+]
+
+[project.urls]
+Repository = "https://github.com/urschrei/rstar_geodetic"
+
+[tool.maturin]
+module-name = "rstar_geodetic._rstar_geodetic"
+python-source = "python"
+# Supplies pyo3's `extension-module` only for the wheel build, leaving plain `cargo`
+# builds able to link libpython for clippy and tests.
+features = ["pyo3/extension-module"]
+
+[tool.uv]
+# Rebuild the extension when either crate's Rust sources or manifests change.
+cache-keys = [
+    { file = "pyproject.toml" },
+    { file = "Cargo.toml" },
+    { file = "src/**/*.rs" },
+    { file = "../Cargo.toml" },
+    { file = "../src/**/*.rs" },
+]
+
+[dependency-groups]
+dev = ["pytest>=8", "shapely>=2", "geopandas>=1", "maturin>=1.7,<2.0", "ruff>=0.6"]

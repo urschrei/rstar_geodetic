@@ -1,3 +1,12 @@
+[workspace]
+members = [".", "python"]
+# The Python extension crate is built through maturin, not as part of a plain workspace
+# build. Keeping it out of the default set means `cargo build`/`test`, the no_std
+# `--target aarch64-unknown-none` build, and the MSRV build all operate on the root crate
+# only; the Python crate is still reached by `cargo clippy --workspace` and by maturin.
+default-members = ["."]
+resolver = "3"
+
 [package]
 name = "rstar_geodetic"
 version = "0.1.0"
