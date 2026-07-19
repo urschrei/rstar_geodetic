@@ -4,6 +4,10 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    ignore:
+      # The pinned ref on dtolnay/rust-toolchain is the MSRV toolchain version,
+      # not an action version; it changes only when the crate's MSRV does.
+      - dependency-name: "dtolnay/rust-toolchain"
   - package-ecosystem: "cargo"
     directory: "/"
     schedule:
