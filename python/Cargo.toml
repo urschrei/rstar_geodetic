@@ -16,6 +16,9 @@ crate-type = ["cdylib"]
 [dependencies]
 # The WGS84 geodesic queries are compiled in by default for the Python wheels.
 rstar_geodetic = { path = "..", features = ["wgs84"] }
+# For the `RTreeObject`/`PointDistance` traits the local index leaf delegates. Must match
+# the version `rstar_geodetic` uses so the trait impls line up.
+rstar = "0.13"
 # `extension-module` is deliberately not enabled here; maturin adds it via
 # `[tool.maturin] features` so `cargo clippy`/`cargo test` still link against libpython.
 pyo3 = { version = "0.29", features = ["abi3-py310"] }

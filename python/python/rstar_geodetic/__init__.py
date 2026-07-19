@@ -7,6 +7,9 @@ metres. The classes interoperate with shapely and geopandas through the
 
 from ._rstar_geodetic import (
     GeodeticError,
+    GeodeticLineStringTree,
+    GeodeticPointTree,
+    GeodeticPolygonTree,
     LineString,
     Point,
     Polygon,
@@ -15,6 +18,9 @@ from ._rstar_geodetic import (
 
 __all__ = [
     "GeodeticError",
+    "GeodeticLineStringTree",
+    "GeodeticPointTree",
+    "GeodeticPolygonTree",
     "LineString",
     "Point",
     "Polygon",

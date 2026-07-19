@@ -9,6 +9,7 @@ use pyo3::prelude::*;
 mod error;
 mod geo_interface;
 mod geometry;
+mod tree;
 
 /// The extension module. Its name must match the `[lib] name` and the final component of
 /// `module-name` in `pyproject.toml`.
@@ -22,5 +23,8 @@ fn _rstar_geodetic(module: &Bound<'_, PyModule>) -> PyResult<()> {
     module.add_class::<geometry::Point>()?;
     module.add_class::<geometry::LineString>()?;
     module.add_class::<geometry::Polygon>()?;
+    module.add_class::<tree::GeodeticPointTree>()?;
+    module.add_class::<tree::GeodeticLineStringTree>()?;
+    module.add_class::<tree::GeodeticPolygonTree>()?;
     Ok(())
 }

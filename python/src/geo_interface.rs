@@ -7,9 +7,6 @@
 //! collection types (`FeatureCollection`, `GeometryCollection`, `Multi*`) are expanded to
 //! their member geometries for the tree constructors.
 
-// The inbound parsers are wired up by the tree constructors in a later step.
-#![allow(dead_code)]
-
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;

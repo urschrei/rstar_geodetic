@@ -15,8 +15,6 @@ create_exception!(
 
 /// Converts a core [`rstar_geodetic::GeodeticError`] into the Python `GeodeticError`,
 /// carrying its human-readable message.
-// Called by the inbound parsers, which the tree constructors wire up in a later step.
-#[allow(dead_code)]
 pub(crate) fn map_error(error: rstar_geodetic::GeodeticError) -> PyErr {
     GeodeticError::new_err(error.to_string())
 }
