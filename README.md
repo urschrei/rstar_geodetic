@@ -206,6 +206,14 @@ rsg_point_tree_nearest_neighbor(tree, 4.9041, 52.3676, &nearest, &found);
 rsg_point_tree_free(tree);
 ```
 
+## Python bindings
+
+A PyO3 package in [`python/`](python/) exposes the three trees to Python with
+`__geo_interface__`-compatible classes, so it interoperates with shapely and geopandas.
+Queries return integer input positions (the shapely `STRtree` convention), and the WGS84
+geodesic queries are compiled in. See [`python/README.md`](python/README.md) for the
+install and usage instructions.
+
 ## Testing
 
 Property tests use [Hegel](https://crates.io/crates/hegeltest). The arc oracle is

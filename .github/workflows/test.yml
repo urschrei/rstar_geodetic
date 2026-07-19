@@ -110,6 +110,37 @@ jobs:
           cc examples/c/smoke.c -I include -DRSG_HAVE_WGS84 -L target/release -lrstar_geodetic -o target/rsg_smoke
           LD_LIBRARY_PATH=target/release target/rsg_smoke
 
+  python:
+    name: Python bindings
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: python
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8
+        with:
+          enable-cache: true
+      - name: Sync the environment
+        working-directory: python
+        run: uv sync
+      - name: Build the extension
+        working-directory: python
+        run: uv run maturin develop --uv
+      - name: Check formatting and lint with Ruff
+        working-directory: python
+        run: |
+          uv run ruff format --check .
+          uv run ruff check .
+      - name: Run pytest
+        working-directory: python
+        run: uv run pytest
+
   conclusion:
     needs:
       - test
@@ -117,6 +148,7 @@ jobs:
       - msrv
       - no_std
       - ffi
+      - python
     runs-on: ubuntu-latest
     steps:
       - name: Result

@@ -3,7 +3,6 @@
 import math
 
 import pytest
-
 import rstar_geodetic as rg
 
 CAPITALS = [

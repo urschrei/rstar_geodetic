@@ -3,9 +3,8 @@
 import pytest
 
 gpd = pytest.importorskip("geopandas")
-from shapely.geometry import Point  # noqa: E402
-
 import rstar_geodetic as rg  # noqa: E402
+from shapely.geometry import Point  # noqa: E402
 
 
 def test_geoseries_construction():

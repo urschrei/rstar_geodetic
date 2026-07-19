@@ -3,6 +3,7 @@
 import pytest
 
 shapely_geometry = pytest.importorskip("shapely.geometry")
+import rstar_geodetic as rg  # noqa: E402
 from shapely.geometry import (  # noqa: E402
     LineString,
     MultiPoint,
@@ -10,8 +11,6 @@ from shapely.geometry import (  # noqa: E402
     Polygon,
     shape,
 )
-
-import rstar_geodetic as rg  # noqa: E402
 
 
 def test_point_tree_from_shapely_points():
