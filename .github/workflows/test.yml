@@ -24,7 +24,7 @@ jobs:
         with:
           key: test
       - name: Install nextest
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.85.5
         with:
           tool: cargo-nextest
       - run: cargo nextest run
@@ -99,7 +99,7 @@ jobs:
         with:
           key: ffi
       - name: Install cbindgen and nextest
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@v2.85.5
         with:
           tool: cbindgen,cargo-nextest
       # In-crate tests only (`--lib` covers the ffi module); the integration and
