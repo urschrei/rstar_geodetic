@@ -90,6 +90,11 @@ mod geodetic;
 
 pub use geodetic::*;
 
+/// Helpers for bindings that report query results as input positions: a position-carrying
+/// leaf and a coordinate-keyed position map. Used by the `ffi` module and the Python and
+/// JavaScript bindings.
+pub mod indexed;
+
 /// C-ABI bindings over the geodetic trees. Present only with the `ffi` feature, which pulls
 /// in `std`; see the module docs for the ownership and error-handling rules.
 #[cfg(feature = "ffi")]

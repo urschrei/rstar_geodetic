@@ -14,7 +14,9 @@ use crate::{GeodeticCoord, GeodeticObject, GeodeticRTree, UnitVec, squared_chord
 
 use super::construct::{RsgLineTree, RsgPointTree, RsgPolygonTree};
 use super::error::RsgStatus;
-use super::{IndexedLeaf, coord_key, ffi_guard};
+use crate::indexed::{IndexedLeaf, coord_key};
+
+use super::ffi_guard;
 
 /// A query result: the caller's input position and the great-circle distance in metres
 /// from the query point to the nearest point of that geometry.

@@ -3,18 +3,13 @@
 //! The point tree keeps the concrete [`GeodeticRTree<GeodeticPoint>`] so it retains the
 //! crate's indexed rectangle query and its tuned wgs84 refine. Input positions are
 //! recovered from query results through a coordinate-keyed multimap (see
-//! [`super::coord_key`]).
+//! [`crate::indexed::coord_key`]).
 
-use std::collections::HashMap;
-
+use crate::indexed::{CoordIndex, IndexedLeaf, coord_index};
 use crate::{GeodeticLineString, GeodeticPoint, GeodeticPolygon, GeodeticRTree, GeodeticRing};
 
 use super::error::RsgStatus;
-use super::{IndexedLeaf, coord_key, ffi_guard};
-
-/// Input positions keyed by coordinate bits: the recovery map from a query result's
-/// coordinate back to the original input positions at that coordinate.
-pub(crate) type CoordIndex = HashMap<(u64, u64), Vec<usize>>;
+use super::ffi_guard;
 
 /// An opaque handle to a point tree. Construct with [`rsg_point_tree_new`] and release with
 /// [`rsg_point_tree_free`].
@@ -43,21 +38,15 @@ pub(crate) unsafe fn read_points(
     };
 
     let mut points = Vec::with_capacity(count);
-    let mut index_by_coord: CoordIndex = HashMap::new();
     for index in 0..count {
         let lon = values[index * 2];
         let lat = values[index * 2 + 1];
         match GeodeticPoint::try_new(lon, lat) {
-            Ok(point) => {
-                index_by_coord
-                    .entry(coord_key(point.coord()))
-                    .or_default()
-                    .push(index);
-                points.push(point);
-            }
+            Ok(point) => points.push(point),
             Err(error) => return Err(RsgStatus::from(error)),
         }
     }
+    let index_by_coord = coord_index(&points);
     Ok((points, index_by_coord))
 }
 
@@ -136,13 +125,13 @@ pub unsafe extern "C" fn rsg_point_tree_size(
 /// An opaque handle to a linestring tree. Construct with [`rsg_line_tree_new`] and release
 /// with [`rsg_line_tree_free`].
 pub struct RsgLineTree {
-    pub(crate) tree: GeodeticRTree<IndexedLeaf<GeodeticLineString>>,
+    pub(crate) tree: GeodeticRTree<IndexedLeaf<Box<GeodeticLineString>>>,
 }
 
 /// An opaque handle to a polygon tree. Construct with [`rsg_polygon_tree_new`] and release
 /// with [`rsg_polygon_tree_free`].
 pub struct RsgPolygonTree {
-    pub(crate) tree: GeodeticRTree<IndexedLeaf<GeodeticPolygon>>,
+    pub(crate) tree: GeodeticRTree<IndexedLeaf<Box<GeodeticPolygon>>>,
 }
 
 /// Reads a length-`num + 1` CSR offset array and validates it partitions `total` elements:
@@ -223,7 +212,10 @@ pub unsafe extern "C" fn rsg_line_tree_new(
         for index in 0..num_lines {
             let pairs = vertex_pairs(values, offsets[index], offsets[index + 1]);
             match GeodeticLineString::try_from_lonlat(pairs) {
-                Ok(geometry) => leaves.push(IndexedLeaf { geometry, index }),
+                Ok(geometry) => leaves.push(IndexedLeaf {
+                    geometry: Box::new(geometry),
+                    index,
+                }),
                 Err(error) => return RsgStatus::from(error),
             }
         }
@@ -354,7 +346,10 @@ pub unsafe extern "C" fn rsg_polygon_tree_new(
             let exterior = rings.next().expect("a polygon has at least one ring");
             let interiors = rings.collect();
             match GeodeticPolygon::try_new(exterior, interiors) {
-                Ok(geometry) => leaves.push(IndexedLeaf { geometry, index }),
+                Ok(geometry) => leaves.push(IndexedLeaf {
+                    geometry: Box::new(geometry),
+                    index,
+                }),
                 Err(error) => return RsgStatus::from(error),
             }
         }

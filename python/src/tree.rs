@@ -7,14 +7,15 @@
 //! map; the linestring and polygon trees wrap each geometry in an [`IndexedLeaf`] that
 //! carries its position, sharing one `Arc` with the by-index geometry store.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use pyo3::exceptions::PyIndexError;
 use pyo3::prelude::*;
 use pyo3::types::PyList;
 
-use rstar::{AABB, PointDistance, RTreeObject};
+use rstar::PointDistance;
+use rstar_geodetic::indexed::{CoordIndex, IndexedLeaf, coord_index, coord_key};
 use rstar_geodetic::{
     GeodeticCoord, GeodeticLineString, GeodeticPoint, GeodeticPolygon, GeodeticRTree, UnitVec,
     geodesic_distance_wgs84, squared_chord_to_metres,
@@ -23,51 +24,7 @@ use rstar_geodetic::{
 use crate::geo_interface::{collect_linestrings, collect_points, collect_polygons, parse_point};
 use crate::geometry::{LineString, Point, Polygon};
 
-// --- index leaf shared with the by-index store ---
-
-/// A tree leaf carrying its input position and an `Arc` to the geometry, delegating the two
-/// index traits to it. The `Arc` is shared with the tree's by-index geometry store.
-struct IndexedLeaf<G> {
-    geometry: Arc<G>,
-    index: usize,
-}
-
-impl<G> RTreeObject for IndexedLeaf<G>
-where
-    G: RTreeObject<Envelope = AABB<UnitVec>>,
-{
-    type Envelope = AABB<UnitVec>;
-
-    fn envelope(&self) -> Self::Envelope {
-        self.geometry.envelope()
-    }
-}
-
-impl<G> PointDistance for IndexedLeaf<G>
-where
-    G: RTreeObject<Envelope = AABB<UnitVec>> + PointDistance,
-{
-    fn distance_2(&self, point: &UnitVec) -> f64 {
-        self.geometry.distance_2(point)
-    }
-
-    fn contains_point(&self, point: &UnitVec) -> bool {
-        self.geometry.contains_point(point)
-    }
-
-    fn distance_2_if_less_or_equal(&self, point: &UnitVec, max_distance_2: f64) -> Option<f64> {
-        self.geometry
-            .distance_2_if_less_or_equal(point, max_distance_2)
-    }
-}
-
 // --- shared helpers ---
-
-type CoordIndex = HashMap<(u64, u64), Vec<usize>>;
-
-fn coord_key(coord: GeodeticCoord) -> (u64, u64) {
-    (coord.lon.to_bits(), coord.lat.to_bits())
-}
 
 /// The query coordinate parsed from a point-like object (a `(lon, lat)` pair, a geo
 /// interface `Point`, or a mapping), range-validated.
@@ -115,13 +72,7 @@ impl GeodeticPointTree {
     fn new(py: Python<'_>, data: &Bound<'_, PyAny>) -> PyResult<Self> {
         let points = collect_points(data)?;
         let geometries: Vec<Arc<GeodeticPoint>> = points.iter().map(|p| Arc::new(*p)).collect();
-        let mut index_by_coord = CoordIndex::new();
-        for (index, point) in points.iter().enumerate() {
-            index_by_coord
-                .entry(coord_key(point.coord()))
-                .or_default()
-                .push(index);
-        }
+        let index_by_coord = coord_index(&points);
         let tree = py.detach(|| GeodeticRTree::bulk_load(points));
         Ok(Self {
             tree,
@@ -274,7 +225,7 @@ impl GeodeticPointTree {
 /// A geodetic R-tree over linestrings.
 #[pyclass(module = "rstar_geodetic")]
 pub struct GeodeticLineStringTree {
-    tree: GeodeticRTree<IndexedLeaf<GeodeticLineString>>,
+    tree: GeodeticRTree<IndexedLeaf<Arc<GeodeticLineString>>>,
     geometries: Vec<Arc<GeodeticLineString>>,
 }
 
@@ -288,7 +239,7 @@ impl GeodeticLineStringTree {
             .into_iter()
             .map(Arc::new)
             .collect();
-        let leaves: Vec<IndexedLeaf<GeodeticLineString>> = geometries
+        let leaves: Vec<IndexedLeaf<Arc<GeodeticLineString>>> = geometries
             .iter()
             .enumerate()
             .map(|(index, geometry)| IndexedLeaf {
@@ -373,7 +324,7 @@ impl GeodeticLineStringTree {
 /// A geodetic R-tree over polygons.
 #[pyclass(module = "rstar_geodetic")]
 pub struct GeodeticPolygonTree {
-    tree: GeodeticRTree<IndexedLeaf<GeodeticPolygon>>,
+    tree: GeodeticRTree<IndexedLeaf<Arc<GeodeticPolygon>>>,
     geometries: Vec<Arc<GeodeticPolygon>>,
 }
 
@@ -385,7 +336,7 @@ impl GeodeticPolygonTree {
     fn new(py: Python<'_>, data: &Bound<'_, PyAny>) -> PyResult<Self> {
         let geometries: Vec<Arc<GeodeticPolygon>> =
             collect_polygons(data)?.into_iter().map(Arc::new).collect();
-        let leaves: Vec<IndexedLeaf<GeodeticPolygon>> = geometries
+        let leaves: Vec<IndexedLeaf<Arc<GeodeticPolygon>>> = geometries
             .iter()
             .enumerate()
             .map(|(index, geometry)| IndexedLeaf {
