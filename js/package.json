@@ -1,0 +1,69 @@
+{
+  "name": "rtree-geodetic",
+  "version": "0.1.0",
+  "description": "A geodetic R-tree with great-circle and WGS84 nearest-neighbour and radius queries, compiled to WebAssembly",
+  "license": "MIT OR Apache-2.0",
+  "author": "Stephan Hügel <urschrei@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/urschrei/rstar_geodetic.git",
+    "directory": "js"
+  },
+  "homepage": "https://github.com/urschrei/rstar_geodetic/blob/main/js/README.md",
+  "bugs": "https://github.com/urschrei/rstar_geodetic/issues",
+  "keywords": [
+    "rtree",
+    "r-tree",
+    "geodetic",
+    "spatial",
+    "spatial-index",
+    "geospatial",
+    "gis",
+    "nearest-neighbour",
+    "great-circle",
+    "geodesic",
+    "wgs84",
+    "haversine",
+    "wasm",
+    "webassembly"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "node": {
+        "types": "./dist/node.d.ts",
+        "default": "./dist/node.js"
+      },
+      "default": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE-MIT",
+    "LICENSE-APACHE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build:wasm": "wasm-pack build --target web --out-dir ts/wasm --profile wasm-release",
+    "build:ts": "tsc -p tsconfig.build.json && mkdir -p dist/wasm && cp ts/wasm/*.js ts/wasm/*.d.ts ts/wasm/*.wasm dist/wasm/",
+    "build": "npm run build:wasm && npm run build:ts",
+    "test": "vitest run",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "prepack": "cp ../LICENSE-MIT ../LICENSE-APACHE ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.2.0",
+    "eslint": "^10.9.0",
+    "typescript": "^5.9.0",
+    "typescript-eslint": "^8.67.0",
+    "vitest": "^4.1.11"
+  }
+}
