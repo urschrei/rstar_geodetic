@@ -23,10 +23,6 @@
 
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
-use rstar::{AABB, PointDistance, RTreeObject};
-
-use crate::{GeodeticCoord, UnitVec};
-
 mod construct;
 mod error;
 mod query;
@@ -46,54 +42,8 @@ pub use query::{
 #[cfg(feature = "wgs84")]
 pub use query::{rsg_point_tree_nearest_neighbor_wgs84, rsg_point_tree_within_distance_wgs84};
 
-/// A leaf that carries a geometry alongside its original input position, delegating the
-/// two index traits to the geometry. The position rides along so a query result reports
-/// the caller's input index directly (the shapely STRtree convention). Used for the
-/// linestring and polygon trees; the point tree recovers positions by coordinate instead
-/// so it can keep the concrete-type rectangle and wgs84 queries.
-pub(crate) struct IndexedLeaf<G> {
-    pub(crate) geometry: G,
-    pub(crate) index: usize,
-}
-
-impl<G> RTreeObject for IndexedLeaf<G>
-where
-    G: RTreeObject<Envelope = AABB<UnitVec>>,
-{
-    type Envelope = AABB<UnitVec>;
-
-    fn envelope(&self) -> Self::Envelope {
-        self.geometry.envelope()
-    }
-}
-
-impl<G> PointDistance for IndexedLeaf<G>
-where
-    G: RTreeObject<Envelope = AABB<UnitVec>> + PointDistance,
-{
-    fn distance_2(&self, point: &UnitVec) -> f64 {
-        self.geometry.distance_2(point)
-    }
-
-    fn contains_point(&self, point: &UnitVec) -> bool {
-        self.geometry.contains_point(point)
-    }
-
-    fn distance_2_if_less_or_equal(&self, point: &UnitVec, max_distance_2: f64) -> Option<f64> {
-        self.geometry
-            .distance_2_if_less_or_equal(point, max_distance_2)
-    }
-}
-
 /// Runs `body` at an ABI boundary, converting any panic into
 /// [`RsgStatus::RSG_ERR_INTERNAL_PANIC`] so it never unwinds across the C ABI.
 pub(crate) fn ffi_guard(body: impl FnOnce() -> RsgStatus) -> RsgStatus {
     catch_unwind(AssertUnwindSafe(body)).unwrap_or(RsgStatus::RSG_ERR_INTERNAL_PANIC)
-}
-
-/// The key under which an input position is recorded for coordinate-based recovery: the
-/// bit patterns of the original degrees. Two inputs at bit-identical coordinates share a
-/// key, which is why a query result maps to the set of positions at that coordinate.
-pub(crate) fn coord_key(coord: GeodeticCoord) -> (u64, u64) {
-    (coord.lon.to_bits(), coord.lat.to_bits())
 }

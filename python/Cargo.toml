@@ -15,7 +15,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 # The WGS84 geodesic queries are compiled in by default for the Python wheels.
-rstar_geodetic = { path = "..", features = ["wgs84"] }
+rstar_geodetic = { path = "..", features = ["std", "wgs84"] }
 # For the `RTreeObject`/`PointDistance` traits the local index leaf delegates. Must match
 # the version `rstar_geodetic` uses so the trait impls line up.
 rstar = "0.13"
