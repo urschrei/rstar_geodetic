@@ -7,12 +7,18 @@
 
 use wasm_bindgen::prelude::wasm_bindgen;
 
+mod csr;
 mod error;
+mod indexed_query;
+mod line_tree;
 mod point_tree;
+mod polygon_tree;
 mod result;
 
 pub use error::geodetic_error;
+pub use line_tree::LineStringTree;
 pub use point_tree::PointTree;
+pub use polygon_tree::PolygonTree;
 pub use result::{Neighbor, Neighbors};
 
 /// Installs the panic hook once, when the module is instantiated.
