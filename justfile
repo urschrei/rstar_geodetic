@@ -19,3 +19,15 @@ ffi-check-header:
 ffi-smoke: ffi-build
     cc examples/c/smoke.c -I include -DRSG_HAVE_WGS84 -L target/release -lrstar_geodetic -o target/rsg_smoke
     DYLD_LIBRARY_PATH=target/release LD_LIBRARY_PATH=target/release target/rsg_smoke
+
+# Build the wasm module into js/ts/wasm (size-optimised `wasm-release` profile).
+js-build-wasm:
+    cd js && npm run build:wasm
+
+# Build the complete npm package into js/dist (wasm module, then TypeScript).
+js-build: js-build-wasm
+    cd js && npm run build:ts
+
+# Typecheck, lint, and run the vitest suite against the built wasm module.
+js-test: js-build-wasm
+    cd js && npm run typecheck && npm run lint && npm test

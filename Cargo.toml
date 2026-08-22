@@ -1,9 +1,10 @@
 [workspace]
-members = [".", "python"]
-# The Python extension crate is built through maturin, not as part of a plain workspace
-# build. Keeping it out of the default set means `cargo build`/`test`, the no_std
-# `--target aarch64-unknown-none` build, and the MSRV build all operate on the root crate
-# only; the Python crate is still reached by `cargo clippy --workspace` and by maturin.
+members = [".", "python", "js"]
+# The Python extension crate is built through maturin and the wasm crate through
+# wasm-pack, not as part of a plain workspace build. Keeping them out of the default set
+# means `cargo build`/`test`, the no_std `--target aarch64-unknown-none` build, and the
+# MSRV build all operate on the root crate only; both crates are still reached by
+# `cargo clippy --workspace` and by their own build tools.
 default-members = ["."]
 resolver = "3"
 
@@ -84,6 +85,16 @@ required-features = ["wgs84"]
 # hegel) where the hot loops live.
 [profile.test]
 opt-level = 1
+
+# The wasm module is built with this profile (`wasm-pack build --profile wasm-release`):
+# size-optimised, with cross-crate inlining, as the `.wasm` is shipped over the network.
+# A separate profile so the native release build (benchmarks, the C library) keeps the
+# stock settings.
+[profile.wasm-release]
+inherits = "release"
+opt-level = "s"
+lto = true
+codegen-units = 1
 
 [profile.test.package."*"]
 opt-level = 2

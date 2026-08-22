@@ -150,6 +150,51 @@ jobs:
         working-directory: python
         run: uv run pytest
 
+  js:
+    name: JavaScript bindings
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: clippy
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: js
+      - name: Install wasm-pack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack
+      - name: Install Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: js/package-lock.json
+      - name: Lint the wasm crate using Clippy
+        run: cargo clippy -p rstar_geodetic_wasm --target wasm32-unknown-unknown --all-targets -- -D warnings
+      - name: Install npm dependencies
+        working-directory: js
+        run: npm ci
+      - name: Build the wasm module
+        working-directory: js
+        run: npm run build:wasm
+      - name: Typecheck and lint
+        working-directory: js
+        run: |
+          npm run typecheck
+          npm run lint
+      - name: Run vitest
+        working-directory: js
+        run: npm test
+      - name: Build the package
+        working-directory: js
+        run: npm run build:ts
+
   conclusion:
     needs:
       - test
@@ -158,6 +203,7 @@ jobs:
       - no_std
       - ffi
       - python
+      - js
     runs-on: ubuntu-latest
     steps:
       - name: Result

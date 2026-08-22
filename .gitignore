@@ -14,3 +14,12 @@ __pycache__/
 /python/python/rstar_geodetic/*.so
 /python/python/rstar_geodetic/*.pyd
 /python/python/rstar_geodetic/*.dylib
+
+# JavaScript / wasm-pack
+/js/node_modules/
+# The wasm-pack output and the compiled package.
+/js/ts/wasm/
+/js/dist/
+# Copied in by `npm pack` (see the `prepack` script).
+/js/LICENSE-MIT
+/js/LICENSE-APACHE
