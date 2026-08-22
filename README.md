@@ -217,6 +217,14 @@ Queries return integer input positions (the shapely `STRtree` convention), and t
 geodesic queries are compiled in. See [`python/README.md`](python/README.md) for the
 install and usage instructions.
 
+## JavaScript bindings
+
+A `wasm-bindgen` package in [`js/`](js/), published to npm as `rtree-geodetic`, exposes the
+three trees to JavaScript and TypeScript in browsers, bundlers, and Node. Inputs are flat
+typed arrays in the GeoArrow layout, nested arrays, or GeoJSON; queries return input
+positions as `Uint32Array`s with distances in metres; the WGS84 geodesic queries are
+compiled in. See [`js/README.md`](js/README.md) for the install and usage instructions.
+
 ## Testing
 
 Property tests use [Hegel](https://crates.io/crates/hegeltest). The arc oracle is
