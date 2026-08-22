@@ -2,7 +2,8 @@
 //!
 //! Keeps the concrete `GeodeticRTree<GeodeticPoint>` so it retains the crate's indexed
 //! rectangle query and tuned wgs84 refine, recovering input positions from a
-//! coordinate-keyed map (see [`rstar_geodetic::indexed`]).
+//! coordinate-keyed map (see [`rstar_geodetic::indexed`]). The linestring and polygon
+//! trees carry positions in their leaves instead; see [`crate::indexed_query`].
 
 use std::collections::HashSet;
 
@@ -197,7 +198,7 @@ impl PointTree {
 }
 
 /// A range-validated query coordinate.
-fn query_coord(lon: f64, lat: f64) -> Result<GeodeticCoord, JsValue> {
+pub fn query_coord(lon: f64, lat: f64) -> Result<GeodeticCoord, JsValue> {
     GeodeticPoint::try_new(lon, lat)
         .map(|point| point.coord())
         .map_err(geodetic_error)

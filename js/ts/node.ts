@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 
 import { WASM_URL, initOnce, type InitInput } from "./init.js";
 
+export * from "./geometry.js";
 export * from "./tree.js";
 export type { InitInput };
 
