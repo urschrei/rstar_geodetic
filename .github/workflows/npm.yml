@@ -1,0 +1,81 @@
+name: Publish npm package
+
+on:
+  push:
+    tags:
+      # JavaScript release tags only (for example js-v0.1.0), so Rust crate and Python
+      # release tags never trigger an npm publish.
+      - "js-v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and test the package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: npm
+      - name: Install wasm-pack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack
+      - name: Install Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: js/package-lock.json
+      - name: Install npm dependencies
+        working-directory: js
+        run: npm ci
+      - name: Build the package
+        working-directory: js
+        run: npm run build
+      - name: Run the tests
+        working-directory: js
+        run: npm test
+      - name: Pack the tarball
+        working-directory: js
+        run: npm pack
+      - name: Upload the tarball
+        uses: actions/upload-artifact@v7
+        with:
+          name: npm-package
+          path: js/*.tgz
+
+  publish:
+    name: Publish to npm
+    # Publish only on tag pushes, not manual build runs.
+    if: startsWith(github.ref, 'refs/tags/js-v')
+    needs: build
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      # Required for npm trusted publishing (OIDC); provenance is attached automatically.
+      id-token: write
+    steps:
+      - name: Install Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      # Trusted publishing needs npm 11.5.1 or later, which the Node 24 bundle may predate.
+      - name: Update npm
+        run: npm install -g npm@latest
+      - name: Download the tarball
+        uses: actions/download-artifact@v8
+        with:
+          name: npm-package
+      - name: Publish to npm
+        run: npm publish --access public ./*.tgz
