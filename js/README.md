@@ -1,10 +1,11 @@
 # rtree-geodetic
 
 A geodetic R-tree for JavaScript and TypeScript, compiled to WebAssembly from the Rust
-[`rstar_geodetic`](https://github.com/urschrei/rstar_geodetic) crate. It indexes points by
-longitude and latitude and answers nearest-neighbour, within-distance, and rectangle
-queries by great-circle distance, or by exact WGS84 geodesic distance. The ±180°
-antimeridian and the poles need no special handling.
+[`rstar_geodetic`](https://github.com/urschrei/rstar_geodetic) crate. It indexes points,
+linestrings, and polygons by longitude and latitude and answers nearest-neighbour and
+within-distance queries by great-circle distance (and, for points, rectangle queries and
+exact WGS84 geodesic distances). The ±180° antimeridian and the poles need no special
+handling.
 
 Coordinates are longitude first, latitude second, in degrees. Distances are in metres.
 Query results are positions into the input sequence, so they index whatever array of
@@ -16,7 +17,7 @@ features or properties the coordinates came from.
 npm install rtree-geodetic
 ```
 
-The package ships an ES module and a `.wasm` binary (about 115 kB). It runs in browsers,
+The package ships an ES module and a `.wasm` binary (about 170 kB). It runs in browsers,
 in bundlers such as Vite and webpack, and in Node 20 or later; the `node` export
 condition selects an entry point that reads the binary from disk, since Node's `fetch`
 does not read `file:` URLs.
@@ -62,6 +63,54 @@ non-finite value, an odd-length coordinate array) throws an `Error` whose `name`
 
 `init()` accepts an optional source for the binary (a URL, a `Response`, bytes, or a
 `WebAssembly.Module`) for deployments that serve it from elsewhere.
+
+### Linestrings and polygons
+
+`LineStringTree` and `PolygonTree` answer `nearest`, `nearestWithDistance`, and
+`withinDistance` by the distance to the nearest point of each geometry; a point inside a
+polygon is at distance zero. Each takes nested arrays (the shape of the GeoJSON
+`coordinates` member) or the flat CSR layout GeoArrow uses:
+
+```ts
+import { LineStringTree, PolygonTree } from "rtree-geodetic";
+
+const lines = new LineStringTree([
+  [[0.0, 0.0], [1.0, 0.0]],
+  [[10.0, 0.0], [11.0, 0.0]],
+]);
+lines.nearestWithDistance(10.5, 0.1); // { index: 1, distance: 11119.5 }
+
+// The same layout as flat arrays: vertex coordinates plus offsets, one entry per
+// linestring and a final end marker. Arrow/GeoArrow buffers can be passed directly.
+const flat = new LineStringTree({
+  coords: new Float64Array([0, 0, 1, 0, 10, 0, 11, 0]),
+  offsets: new Uint32Array([0, 2, 4]),
+});
+
+// Polygons: an array of rings per polygon (exterior first, then holes), or the two-level
+// layout { coords, ringOffsets, polygonOffsets }.
+const polygons = new PolygonTree([
+  [[[-1, -1], [1, -1], [1, 1], [-1, 1], [-1, -1]]],
+]);
+polygons.nearestWithDistance(0, 0); // { index: 0, distance: 0 }
+```
+
+### GeoJSON
+
+Each tree has a `fromGeoJSON` constructor taking a `FeatureCollection`, or an array of
+`Feature`s or bare geometries, of the matching single geometry type (`Point`,
+`LineString`, or `Polygon`). Result positions index the input features one-to-one, so a
+`Multi*` or `null` geometry is rejected with a `TypeError` naming its position. The
+GeoJSON types are structural, so values typed with `@types/geojson` are accepted as is.
+
+```ts
+const tree = PointTree.fromGeoJSON(featureCollection);
+const nearest = featureCollection.features[tree.nearest(lon, lat)!];
+```
+
+The helpers `flattenCoordinates`, `flattenLineStrings`, and `flattenPolygons` expose the
+conversions to the flat layout, for callers that build a tree repeatedly from the same
+source.
 
 ## Build from source
 
