@@ -1,11 +1,9 @@
 //! Tree constructors, destructors, and size accessors.
 //!
-//! The point tree keeps the concrete [`GeodeticRTree<GeodeticPoint>`] so it retains the
-//! crate's indexed rectangle query and its tuned wgs84 refine. Input positions are
-//! recovered from query results through a coordinate-keyed multimap (see
-//! [`crate::indexed::coord_key`]).
+//! Each point tree leaf is an [`IndexedPoint`] carrying its input position; the
+//! linestring and polygon leaves are [`IndexedLeaf`]s.
 
-use crate::indexed::{CoordIndex, IndexedLeaf, coord_index};
+use crate::indexed::{IndexedLeaf, IndexedPoint, indexed_points};
 use crate::{GeodeticLineString, GeodeticPoint, GeodeticPolygon, GeodeticRTree, GeodeticRing};
 
 use super::error::RsgStatus;
@@ -14,14 +12,11 @@ use super::ffi_guard;
 /// An opaque handle to a point tree. Construct with [`rsg_point_tree_new`] and release with
 /// [`rsg_point_tree_free`].
 pub struct RsgPointTree {
-    pub(crate) tree: GeodeticRTree<GeodeticPoint>,
-    // Original input positions keyed by coordinate bits, for STRtree-style index recovery.
-    pub(crate) index_by_coord: CoordIndex,
+    pub(crate) tree: GeodeticRTree<IndexedPoint>,
 }
 
-/// Reads `count` interleaved `[lon, lat]` pairs from `coords`, validating each and
-/// recording its input position. Returns the points in input order and the recovery map,
-/// or the first validation error.
+/// Reads `count` interleaved `[lon, lat]` pairs from `coords`, validating each. Returns
+/// the points in input order, or the first validation error.
 ///
 /// # Safety
 ///
@@ -29,7 +24,7 @@ pub struct RsgPointTree {
 pub(crate) unsafe fn read_points(
     coords: *const f64,
     count: usize,
-) -> Result<(Vec<GeodeticPoint>, CoordIndex), RsgStatus> {
+) -> Result<Vec<GeodeticPoint>, RsgStatus> {
     let values: &[f64] = if count == 0 {
         &[]
     } else {
@@ -46,8 +41,7 @@ pub(crate) unsafe fn read_points(
             Err(error) => return Err(RsgStatus::from(error)),
         }
     }
-    let index_by_coord = coord_index(&points);
-    Ok((points, index_by_coord))
+    Ok(points)
 }
 
 /// Builds a point tree from `num_points` interleaved `[lon, lat]` degree pairs.
@@ -70,13 +64,12 @@ pub unsafe extern "C" fn rsg_point_tree_new(
         if out_tree.is_null() || (coords.is_null() && num_points != 0) {
             return RsgStatus::RSG_ERR_NULL_ARGUMENT;
         }
-        let (points, index_by_coord) = match unsafe { read_points(coords, num_points) } {
-            Ok(built) => built,
+        let points = match unsafe { read_points(coords, num_points) } {
+            Ok(points) => points,
             Err(status) => return status,
         };
         let handle = Box::new(RsgPointTree {
-            tree: GeodeticRTree::bulk_load(points),
-            index_by_coord,
+            tree: GeodeticRTree::bulk_load(indexed_points(points)),
         });
         // Safety: `out_tree` was checked non-null above.
         unsafe { *out_tree = Box::into_raw(handle) };

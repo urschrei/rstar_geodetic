@@ -10,9 +10,6 @@
 //!   keeps the point-only queries (the rectangle query and the `wgs84` refine) through
 //!   [`PointLeaf`], and [`nearest_position`] adds a deterministic tie-break among
 //!   bit-identical duplicates.
-//! - [`coord_key`] and [`CoordIndex`] recover positions for a point tree over plain
-//!   [`GeodeticPoint`] leaves by coordinate; two inputs at bit-identical coordinates share
-//!   a key, which is why a key maps to every position at that coordinate.
 
 use core::ops::Deref;
 
@@ -123,31 +120,6 @@ pub fn nearest_position_wgs84(
         .min()
         .unwrap_or(leaf.data);
     Some((position, metres))
-}
-
-/// The key under which an input position is recorded for coordinate-based recovery: the
-/// bit patterns of the longitude and latitude in degrees.
-pub fn coord_key(coord: GeodeticCoord) -> (u64, u64) {
-    (coord.lon.to_bits(), coord.lat.to_bits())
-}
-
-/// Input positions keyed by [`coord_key`]: the map from a point-tree result back to the
-/// input positions at that coordinate. Requires the `std` feature.
-#[cfg(feature = "std")]
-pub type CoordIndex = std::collections::HashMap<(u64, u64), alloc::vec::Vec<usize>>;
-
-/// Builds the [`CoordIndex`] for `points`, recording each point's position in the
-/// iteration order. Requires the `std` feature.
-#[cfg(feature = "std")]
-pub fn coord_index<'a>(points: impl IntoIterator<Item = &'a crate::GeodeticPoint>) -> CoordIndex {
-    let mut index_by_coord = CoordIndex::new();
-    for (index, point) in points.into_iter().enumerate() {
-        index_by_coord
-            .entry(coord_key(point.coord()))
-            .or_default()
-            .push(index);
-    }
-    index_by_coord
 }
 
 #[cfg(test)]

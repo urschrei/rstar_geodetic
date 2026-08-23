@@ -1,13 +1,11 @@
 //! The three tree classes: `GeodeticPointTree`, `GeodeticLineStringTree`, and
 //! `GeodeticPolygonTree`.
 //!
-//! Queries return integer input positions (the shapely `STRtree` convention). The point
-//! tree keeps the concrete `GeodeticRTree<GeodeticPoint>` so it retains the crate's indexed
-//! rectangle query and tuned wgs84 refine, recovering positions from a coordinate-keyed
-//! map; the linestring and polygon trees wrap each geometry in an [`IndexedLeaf`] that
-//! carries its position, sharing one `Arc` with the by-index geometry store.
+//! Queries return integer input positions (the shapely `STRtree` convention). Each point
+//! tree leaf is an [`IndexedPoint`] carrying its position; the linestring and polygon
+//! trees wrap each geometry in an [`IndexedLeaf`] that carries its position, sharing one
+//! `Arc` with the by-index geometry store.
 
-use std::collections::HashSet;
 use std::sync::Arc;
 
 use pyo3::exceptions::PyIndexError;
@@ -15,10 +13,12 @@ use pyo3::prelude::*;
 use pyo3::types::PyList;
 
 use rstar::PointDistance;
-use rstar_geodetic::indexed::{CoordIndex, IndexedLeaf, coord_index, coord_key};
+use rstar_geodetic::indexed::{
+    IndexedLeaf, IndexedPoint, indexed_points, nearest_position, nearest_position_wgs84,
+};
 use rstar_geodetic::{
-    GeodeticCoord, GeodeticLineString, GeodeticPoint, GeodeticPolygon, GeodeticRTree, UnitVec,
-    geodesic_distance_wgs84, squared_chord_to_metres,
+    GeodeticCoord, GeodeticLineString, GeodeticPoint, GeodeticPolygon, GeodeticRTree, PointLeaf,
+    UnitVec, geodesic_distance_wgs84, squared_chord_to_metres,
 };
 
 use crate::geo_interface::{collect_linestrings, collect_points, collect_polygons, parse_point};
@@ -52,15 +52,8 @@ fn within_result<'py>(
 /// A geodetic R-tree over points.
 #[pyclass(module = "rstar_geodetic")]
 pub struct GeodeticPointTree {
-    tree: GeodeticRTree<GeodeticPoint>,
+    tree: GeodeticRTree<IndexedPoint>,
     geometries: Vec<Arc<GeodeticPoint>>,
-    index_by_coord: CoordIndex,
-}
-
-impl GeodeticPointTree {
-    fn position(&self, coord: GeodeticCoord) -> usize {
-        self.index_by_coord[&coord_key(coord)][0]
-    }
 }
 
 #[pymethods]
@@ -72,13 +65,8 @@ impl GeodeticPointTree {
     fn new(py: Python<'_>, data: &Bound<'_, PyAny>) -> PyResult<Self> {
         let points = collect_points(data)?;
         let geometries: Vec<Arc<GeodeticPoint>> = points.iter().map(|p| Arc::new(*p)).collect();
-        let index_by_coord = coord_index(&points);
-        let tree = py.detach(|| GeodeticRTree::bulk_load(points));
-        Ok(Self {
-            tree,
-            geometries,
-            index_by_coord,
-        })
+        let tree = py.detach(|| GeodeticRTree::bulk_load(indexed_points(points)));
+        Ok(Self { tree, geometries })
     }
 
     fn __len__(&self) -> usize {
@@ -108,20 +96,14 @@ impl GeodeticPointTree {
     /// The input position of the nearest point to `query`, or `None` if the tree is empty.
     fn nearest(&self, query: &Bound<'_, PyAny>) -> PyResult<Option<usize>> {
         let coord = query_coord(query)?;
-        Ok(self
-            .tree
-            .nearest_neighbor_with_distance(coord)
-            .map(|(point, _)| self.position(point.coord())))
+        Ok(nearest_position(&self.tree, coord).map(|(index, _)| index))
     }
 
     /// The `(input position, distance in metres)` of the nearest point to `query`, or
     /// `None` if the tree is empty.
     fn nearest_with_distance(&self, query: &Bound<'_, PyAny>) -> PyResult<Option<(usize, f64)>> {
         let coord = query_coord(query)?;
-        Ok(self
-            .tree
-            .nearest_neighbor_with_distance(coord)
-            .map(|(point, metres)| (self.position(point.coord()), metres)))
+        Ok(nearest_position(&self.tree, coord))
     }
 
     /// The input positions of every point within `radius_metres` great-circle metres of
@@ -136,17 +118,16 @@ impl GeodeticPointTree {
     ) -> PyResult<Bound<'py, PyAny>> {
         let coord = query_coord(query)?;
         let query_vector = UnitVec::from(coord);
-        let mut seen: HashSet<(u64, u64)> = HashSet::new();
-        let mut pairs: Vec<(usize, f64)> = Vec::new();
-        for point in self.tree.locate_within_distance(coord, radius_metres) {
-            let key = coord_key(point.coord());
-            if seen.insert(key) {
-                let metres = squared_chord_to_metres(point.distance_2(&query_vector));
-                for &index in &self.index_by_coord[&key] {
-                    pairs.push((index, metres));
-                }
-            }
-        }
+        let pairs: Vec<(usize, f64)> = self
+            .tree
+            .locate_within_distance(coord, radius_metres)
+            .map(|leaf| {
+                (
+                    leaf.data,
+                    squared_chord_to_metres(leaf.distance_2(&query_vector)),
+                )
+            })
+            .collect();
         within_result(py, pairs, return_distance)
     }
 
@@ -160,25 +141,18 @@ impl GeodeticPointTree {
     ) -> PyResult<Vec<usize>> {
         let lower = query_coord(lower)?;
         let upper = query_coord(upper)?;
-        let mut seen: HashSet<(u64, u64)> = HashSet::new();
-        let mut indices: Vec<usize> = Vec::new();
-        for point in self.tree.locate_in_rectangle(lower, upper) {
-            let key = coord_key(point.coord());
-            if seen.insert(key) {
-                indices.extend_from_slice(&self.index_by_coord[&key]);
-            }
-        }
-        Ok(indices)
+        Ok(self
+            .tree
+            .locate_in_rectangle(lower, upper)
+            .map(|leaf| leaf.data)
+            .collect())
     }
 
     /// The input position of the nearest point to `query` by WGS84-ellipsoid geodesic
     /// distance, or `None` if the tree is empty.
     fn nearest_wgs84(&self, query: &Bound<'_, PyAny>) -> PyResult<Option<usize>> {
         let coord = query_coord(query)?;
-        Ok(self
-            .tree
-            .nearest_neighbor_with_distance_wgs84(coord)
-            .map(|(point, _)| self.position(point.coord())))
+        Ok(nearest_position_wgs84(&self.tree, coord).map(|(index, _)| index))
     }
 
     /// The `(input position, geodesic distance in metres)` of the nearest point to `query`
@@ -188,10 +162,7 @@ impl GeodeticPointTree {
         query: &Bound<'_, PyAny>,
     ) -> PyResult<Option<(usize, f64)>> {
         let coord = query_coord(query)?;
-        Ok(self
-            .tree
-            .nearest_neighbor_with_distance_wgs84(coord)
-            .map(|(point, metres)| (self.position(point.coord()), metres)))
+        Ok(nearest_position_wgs84(&self.tree, coord))
     }
 
     /// The input positions of every point within `radius_metres` WGS84-ellipsoid geodesic
@@ -205,17 +176,11 @@ impl GeodeticPointTree {
         return_distance: bool,
     ) -> PyResult<Bound<'py, PyAny>> {
         let coord = query_coord(query)?;
-        let mut seen: HashSet<(u64, u64)> = HashSet::new();
-        let mut pairs: Vec<(usize, f64)> = Vec::new();
-        for point in self.tree.locate_within_distance_wgs84(coord, radius_metres) {
-            let key = coord_key(point.coord());
-            if seen.insert(key) {
-                let metres = geodesic_distance_wgs84(coord, point.coord());
-                for &index in &self.index_by_coord[&key] {
-                    pairs.push((index, metres));
-                }
-            }
-        }
+        let pairs: Vec<(usize, f64)> = self
+            .tree
+            .locate_within_distance_wgs84(coord, radius_metres)
+            .map(|leaf| (leaf.data, geodesic_distance_wgs84(coord, leaf.coord())))
+            .collect();
         within_result(py, pairs, return_distance)
     }
 }

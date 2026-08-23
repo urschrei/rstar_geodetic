@@ -6,15 +6,17 @@
 //! release with [`rsg_neighbors_free`] or [`rsg_indices_free`]. An empty result yields a
 //! null buffer pointer and a length of zero.
 
-use std::collections::HashSet;
-
 use rstar::PointDistance;
 
-use crate::{GeodeticCoord, GeodeticObject, GeodeticRTree, UnitVec, squared_chord_to_metres};
+use crate::{
+    GeodeticCoord, GeodeticObject, GeodeticRTree, PointLeaf, UnitVec, squared_chord_to_metres,
+};
 
 use super::construct::{RsgLineTree, RsgPointTree, RsgPolygonTree};
 use super::error::RsgStatus;
-use crate::indexed::{IndexedLeaf, coord_key};
+#[cfg(feature = "wgs84")]
+use crate::indexed::nearest_position_wgs84;
+use crate::indexed::{IndexedLeaf, nearest_position};
 
 use super::ffi_guard;
 
@@ -161,13 +163,10 @@ pub unsafe extern "C" fn rsg_point_tree_nearest_neighbor(
         // Safety: `tree` was checked non-null above.
         let handle = unsafe { &*tree };
         let query = GeodeticCoord { lon, lat };
-        let result = handle
-            .tree
-            .nearest_neighbor_with_distance(query)
-            .map(|(point, metres)| RsgNeighbor {
-                index: handle.index_by_coord[&coord_key(point.coord())][0],
-                distance_metres: metres,
-            });
+        let result = nearest_position(&handle.tree, query).map(|(index, metres)| RsgNeighbor {
+            index,
+            distance_metres: metres,
+        });
         // Safety: both out-pointers were checked non-null above.
         unsafe { write_nearest(result, out_neighbor, out_found) };
         RsgStatus::RSG_OK
@@ -197,23 +196,14 @@ pub unsafe extern "C" fn rsg_point_tree_within_distance(
         let handle = unsafe { &*tree };
         let query = GeodeticCoord { lon, lat };
         let query_vector = UnitVec::from(query);
-        // A stored leaf is yielded once per input position, so points at a shared
-        // coordinate arrive together; dedupe by coordinate and emit every input position
-        // recorded there (they share one distance).
-        let mut seen: HashSet<(u64, u64)> = HashSet::new();
-        let mut neighbors: Vec<RsgNeighbor> = Vec::new();
-        for point in handle.tree.locate_within_distance(query, radius_metres) {
-            let key = coord_key(point.coord());
-            if seen.insert(key) {
-                let metres = squared_chord_to_metres(point.distance_2(&query_vector));
-                for &index in &handle.index_by_coord[&key] {
-                    neighbors.push(RsgNeighbor {
-                        index,
-                        distance_metres: metres,
-                    });
-                }
-            }
-        }
+        let neighbors: Vec<RsgNeighbor> = handle
+            .tree
+            .locate_within_distance(query, radius_metres)
+            .map(|leaf| RsgNeighbor {
+                index: leaf.data,
+                distance_metres: squared_chord_to_metres(leaf.distance_2(&query_vector)),
+            })
+            .collect();
         // Safety: both out-pointers were checked non-null above.
         unsafe { write_neighbor_buffer(neighbors, out_items, out_len) };
         RsgStatus::RSG_OK
@@ -252,14 +242,11 @@ pub unsafe extern "C" fn rsg_point_tree_in_rectangle(
             lon: upper_lon,
             lat: upper_lat,
         };
-        let mut seen: HashSet<(u64, u64)> = HashSet::new();
-        let mut indices: Vec<usize> = Vec::new();
-        for point in handle.tree.locate_in_rectangle(lower, upper) {
-            let key = coord_key(point.coord());
-            if seen.insert(key) {
-                indices.extend_from_slice(&handle.index_by_coord[&key]);
-            }
-        }
+        let indices: Vec<usize> = handle
+            .tree
+            .locate_in_rectangle(lower, upper)
+            .map(|leaf| leaf.data)
+            .collect();
         // Safety: both out-pointers were checked non-null above.
         unsafe { write_index_buffer(indices, out_indices, out_len) };
         RsgStatus::RSG_OK
@@ -437,13 +424,10 @@ pub unsafe extern "C" fn rsg_point_tree_nearest_neighbor_wgs84(
         let handle = unsafe { &*tree };
         let query = GeodeticCoord { lon, lat };
         let result =
-            handle
-                .tree
-                .nearest_neighbor_with_distance_wgs84(query)
-                .map(|(point, metres)| RsgNeighbor {
-                    index: handle.index_by_coord[&coord_key(point.coord())][0],
-                    distance_metres: metres,
-                });
+            nearest_position_wgs84(&handle.tree, query).map(|(index, metres)| RsgNeighbor {
+                index,
+                distance_metres: metres,
+            });
         // Safety: both out-pointers were checked non-null above.
         unsafe { write_nearest(result, out_neighbor, out_found) };
         RsgStatus::RSG_OK
@@ -474,23 +458,14 @@ pub unsafe extern "C" fn rsg_point_tree_within_distance_wgs84(
         // Safety: `tree` was checked non-null above.
         let handle = unsafe { &*tree };
         let query = GeodeticCoord { lon, lat };
-        let mut seen: HashSet<(u64, u64)> = HashSet::new();
-        let mut neighbors: Vec<RsgNeighbor> = Vec::new();
-        for point in handle
+        let neighbors: Vec<RsgNeighbor> = handle
             .tree
             .locate_within_distance_wgs84(query, radius_metres)
-        {
-            let key = coord_key(point.coord());
-            if seen.insert(key) {
-                let metres = crate::geodesic_distance_wgs84(query, point.coord());
-                for &index in &handle.index_by_coord[&key] {
-                    neighbors.push(RsgNeighbor {
-                        index,
-                        distance_metres: metres,
-                    });
-                }
-            }
-        }
+            .map(|leaf| RsgNeighbor {
+                index: leaf.data,
+                distance_metres: crate::geodesic_distance_wgs84(query, leaf.coord()),
+            })
+            .collect();
         // Safety: both out-pointers were checked non-null above.
         unsafe { write_neighbor_buffer(neighbors, out_items, out_len) };
         RsgStatus::RSG_OK
