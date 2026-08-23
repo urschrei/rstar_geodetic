@@ -43,10 +43,10 @@ a {
   background: var(--panel);
   border-right: 1px solid var(--panel-border);
   overflow-y: auto;
-  padding: 1.25rem 1.25rem 1rem;
+  padding: 1rem 1.25rem 0.75rem;
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 0.75rem;
 }
 
 .panel__header h1 {
@@ -63,7 +63,7 @@ a {
 }
 
 .section h2 {
-  margin: 0 0 0.6rem;
+  margin: 0 0 0.45rem;
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -73,7 +73,7 @@ a {
 
 .field {
   display: block;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
 }
 
 .field__label {
@@ -101,7 +101,7 @@ button {
 button {
   cursor: pointer;
   background: #18263f;
-  margin-top: 0.75rem;
+  margin-top: 0.2rem;
 }
 
 button:hover {
@@ -127,31 +127,44 @@ input[type="checkbox"] {
   outline-offset: 2px;
 }
 
-.stats {
+.meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+/* One line per value; long values are cut with an ellipsis so the rows below never move. */
+.kv {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.4rem 0.75rem;
-  margin: 0.5rem 0 0;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: 0.75rem;
+  row-gap: 0.15rem;
+  margin: 0.4rem 0 0;
+  align-items: baseline;
 }
 
-.stats div {
-  min-width: 0;
-}
-
-.stats__wide {
-  grid-column: 1 / -1;
-}
-
-.stats dt {
+.kv dt {
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--label);
+  white-space: nowrap;
 }
 
-.stats dd {
+.kv dt.kv__code {
+  text-transform: none;
+  letter-spacing: 0;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+}
+
+.kv dd {
   margin: 0;
-  overflow-wrap: anywhere;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.35;
 }
 
 .mono {
@@ -160,45 +173,29 @@ input[type="checkbox"] {
 }
 
 .hint {
-  margin: 0.5rem 0 0;
+  margin: 0.4rem 0 0;
   color: var(--muted);
   font-size: 0.85rem;
+  min-height: 1.2em;
 }
 
-.bench {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 0.6rem;
-  font-variant-numeric: tabular-nums;
+.kv--bench {
+  margin-top: 0.4rem;
 }
 
-.bench th,
-.bench td {
-  text-align: left;
-  padding: 0.3rem 0.25rem;
-  border-bottom: 1px solid var(--panel-border);
-}
-
-.bench td:not(:first-child),
-.bench th:not(:first-child) {
-  text-align: right;
-  font-family: var(--mono);
-}
-
-.bench tfoot td {
-  border-bottom: 0;
-  color: var(--muted);
-  padding-top: 0.5rem;
+.kv--bench dd {
+  font-size: 0.9rem;
 }
 
 .panel__footer {
   margin-top: auto;
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: 0.75rem;
+  line-height: 1.35;
 }
 
 .panel__footer p {
-  margin: 0.35rem 0 0;
+  margin: 0.3rem 0 0;
 }
 
 .stage {

@@ -24,8 +24,7 @@
         <section class="section" aria-labelledby="data-heading">
           <h2 id="data-heading">Data</h2>
           <label class="field">
-            <span class="field__label">Dataset</span>
-            <select id="dataset">
+            <select id="dataset" aria-label="Dataset">
               <option value="cities">GeoNames populated places</option>
               <option value="random:100000">100 000 random points</option>
               <option value="random:500000">500 000 random points</option>
@@ -33,10 +32,9 @@
               <option value="random:2000000">2 000 000 random points</option>
             </select>
           </label>
-          <dl class="stats">
-            <div><dt>Points</dt><dd id="stat-count">…</dd></div>
-            <div><dt>Tree build</dt><dd id="stat-build">…</dd></div>
-          </dl>
+          <p class="meta mono">
+            <span id="stat-count">…</span> · <span id="stat-build">…</span>
+          </p>
         </section>
 
         <section class="section" aria-labelledby="query-heading">
@@ -53,40 +51,38 @@
           </label>
           <label class="field field--check">
             <input id="wgs84" type="checkbox" checked />
-            <span>Also compute the WGS84 geodesic distance</span>
+            <span>WGS84 geodesic distance</span>
           </label>
-          <dl class="stats" aria-live="polite">
-            <div class="stats__wide">
-              <dt>Query point</dt>
-              <dd id="q-point" class="mono">hover over the globe</dd>
-            </div>
-            <div class="stats__wide">
-              <dt>Nearest</dt>
-              <dd id="q-nearest">—</dd>
-            </div>
-            <div><dt>Great circle</dt><dd id="q-gc" class="mono">—</dd></div>
-            <div><dt>WGS84</dt><dd id="q-wgs84" class="mono">—</dd></div>
-            <div><dt>nearest</dt><dd id="t-nearest" class="mono">—</dd></div>
-            <div><dt>nearestN</dt><dd id="t-nearestn" class="mono">—</dd></div>
-            <div><dt>withinDistance</dt><dd id="t-within" class="mono">—</dd></div>
-            <div><dt>In radius</dt><dd id="q-within" class="mono">—</dd></div>
+          <dl class="kv" aria-live="polite">
+            <dt>Point</dt>
+            <dd id="q-point" class="mono">hover over the globe</dd>
+            <dt>Nearest</dt>
+            <dd id="q-nearest">—</dd>
+            <dt>Great circle</dt>
+            <dd id="q-gc" class="mono">—</dd>
+            <dt>WGS84</dt>
+            <dd id="q-wgs84" class="mono">—</dd>
+            <dt>In radius</dt>
+            <dd id="q-within" class="mono">—</dd>
+            <dt class="kv__code">nearest</dt>
+            <dd id="t-nearest" class="mono">—</dd>
+            <dt class="kv__code">nearestN</dt>
+            <dd id="t-nearestn" class="mono">—</dd>
+            <dt class="kv__code">withinDistance</dt>
+            <dd id="t-within" class="mono">—</dd>
+            <dt class="kv__code">nearestWgs84</dt>
+            <dd id="t-wgs84" class="mono">—</dd>
           </dl>
           <p class="hint" id="pin-hint">Click the globe to fix the query point.</p>
         </section>
 
         <section class="section" aria-labelledby="bench-heading">
           <h2 id="bench-heading">Throughput</h2>
-          <p class="hint">
-            Random queries over the current dataset compared to JS brute-force.
-          </p>
           <button id="bench" type="button">Run benchmark</button>
-          <p id="bench-status" class="hint" aria-live="polite"></p>
-          <table class="bench" id="bench-table" hidden>
-            <thead>
-              <tr><th scope="col">Query</th><th scope="col">Per query</th><th scope="col">Per second</th></tr>
-            </thead>
-            <tbody></tbody>
-          </table>
+          <dl class="kv kv--bench" id="bench-results" hidden></dl>
+          <p id="bench-status" class="hint" aria-live="polite">
+            Random queries against a brute-force scan in JS.
+          </p>
         </section>
 
         <footer class="panel__footer">
@@ -96,9 +92,8 @@
             <a href="https://crates.io/crates/rstar_geodetic">crates.io</a>
           </p>
           <p>
-            Places from <a href="https://www.geonames.org/">GeoNames</a> (CC BY 4.0); coastlines
-            from <a href="https://www.naturalearthdata.com/">Natural Earth</a> via world-atlas.
-            Rendering by d3-geo.
+            Places: <a href="https://www.geonames.org/">GeoNames</a> (CC BY 4.0). Coastlines:
+            <a href="https://www.naturalearthdata.com/">Natural Earth</a> via world-atlas. Rendering: d3-geo.
           </p>
         </footer>
       </aside>

@@ -45,11 +45,12 @@ const dom = {
   tNearest: element<HTMLElement>("t-nearest"),
   tNearestN: element<HTMLElement>("t-nearestn"),
   tWithin: element<HTMLElement>("t-within"),
+  tWgs84: element<HTMLElement>("t-wgs84"),
   qWithin: element<HTMLElement>("q-within"),
   pinHint: element<HTMLElement>("pin-hint"),
   bench: element<HTMLButtonElement>("bench"),
   benchStatus: element<HTMLElement>("bench-status"),
-  benchTable: element<HTMLTableElement>("bench-table"),
+  benchResults: element<HTMLDListElement>("bench-results"),
 };
 
 interface State {
@@ -88,6 +89,16 @@ function formatDistance(metres: number): string {
   }
   const km = metres / 1000;
   return `${km.toLocaleString("en-GB", { maximumSignificantDigits: km < 100 ? 4 : 5 })} km`;
+}
+
+/** A distance difference, shown with little precision: "+99 m", "+1.3 km". */
+function formatDelta(metres: number): string {
+  const sign = metres >= 0 ? "+" : "−";
+  const size = Math.abs(metres);
+  if (size < 1000) {
+    return `${sign}${size.toFixed(0)} m`;
+  }
+  return `${sign}${(size / 1000).toFixed(1)} km`;
 }
 
 function formatMicros(us: number): string {
@@ -150,7 +161,7 @@ const globe = new Globe(dom.canvas, {
       query(lonLat);
     } else {
       state.pinned = lonLat;
-      dom.pinHint.textContent = "Fixed. Click the globe again to follow the pointer.";
+      dom.pinHint.textContent = "Fixed. Click again to release.";
       query(lonLat);
     }
   },
@@ -202,10 +213,11 @@ function query(lonLat: [number, number]): void {
   }
   if (wgs84?.value) {
     const delta = wgs84.value.distance - (hit?.distance ?? 0);
-    const sign = delta >= 0 ? "+" : "−";
-    dom.qWgs84.textContent = `${formatDistance(wgs84.value.distance)} (${sign}${formatDistance(Math.abs(delta))}, ${formatMicros(wgs84.us)})`;
+    dom.qWgs84.textContent = `${formatDistance(wgs84.value.distance)} (${formatDelta(delta)})`;
+    dom.tWgs84.textContent = formatMicros(wgs84.us);
   } else {
     dom.qWgs84.textContent = state.wgs84 ? "—" : "off";
+    dom.tWgs84.textContent = state.wgs84 ? "—" : "off";
   }
   dom.tNearest.textContent = formatMicros(nearest.us);
   dom.tNearestN.textContent = `${formatMicros(nearestN.us)} (k = ${state.k})`;
@@ -238,6 +250,7 @@ function clearQuery(): void {
     dom.tNearest,
     dom.tNearestN,
     dom.tWithin,
+    dom.tWgs84,
     dom.qWithin,
   ]) {
     node.textContent = "—";
@@ -267,8 +280,8 @@ async function useDataset(dataset: Dataset): Promise<void> {
   state.tree = tree;
   state.dataset = dataset;
   globe.setPoints(pointLayer(dataset.coords, dataset.brightCount));
-  dom.statCount.textContent = integer.format(dataset.count);
-  dom.statBuild.textContent = `${buildMs.toFixed(0)} ms`;
+  dom.statCount.textContent = `${integer.format(dataset.count)} points`;
+  dom.statBuild.textContent = `tree built in ${buildMs.toFixed(0)} ms`;
   dom.loading.hidden = true;
   updateHud();
   requery();
@@ -296,40 +309,38 @@ async function selectDataset(value: string): Promise<void> {
 
 // Benchmark ----------------------------------------------------------------------------------
 
+/** Queries per second, compactly: "360k/s". */
+function formatRate(us: number): string {
+  const perSecond = 1e6 / us;
+  if (perSecond >= 1e6) {
+    return `${(perSecond / 1e6).toFixed(1)}M/s`;
+  }
+  if (perSecond >= 1e3) {
+    return `${(perSecond / 1e3).toFixed(0)}k/s`;
+  }
+  return `${perSecond.toFixed(0)}/s`;
+}
+
 function renderBenchmark(result: BenchResult): void {
   const rows: [string, number][] = [
     ["nearest", result.nearestUs],
-    [`nearestN (k = ${result.k})`, result.nearestNUs],
-    [
-      `withinDistance (${formatDistance(result.radiusMetres)}, ${result.withinMeanHits.toFixed(0)} hits on average)`,
-      result.withinUs,
-    ],
-    ["nearest, brute force in JS", result.bruteUs],
+    [`nearestN (k=${result.k})`, result.nearestNUs],
+    ["withinDistance", result.withinUs],
+    ["JS brute force", result.bruteUs],
   ];
-  const body = dom.benchTable.tBodies[0]!;
-  body.replaceChildren(
-    ...rows.map(([label, us]) => {
-      const tr = document.createElement("tr");
-      const th = document.createElement("td");
-      th.textContent = label;
-      const perQuery = document.createElement("td");
-      perQuery.textContent = formatMicros(us);
-      const perSecond = document.createElement("td");
-      perSecond.textContent = integer.format(1e6 / us);
-      tr.append(th, perQuery, perSecond);
-      return tr;
+  dom.benchResults.replaceChildren(
+    ...rows.flatMap(([label, us]) => {
+      const dt = document.createElement("dt");
+      dt.className = "kv__code";
+      dt.textContent = label;
+      const dd = document.createElement("dd");
+      dd.className = "mono";
+      dd.textContent = `${formatMicros(us)} · ${formatRate(us)}`;
+      return [dt, dd];
     }),
   );
-  let foot = dom.benchTable.tFoot;
-  if (!foot) {
-    foot = dom.benchTable.createTFoot();
-  }
-  foot.replaceChildren();
-  const tr = foot.insertRow();
-  const td = tr.insertCell();
-  td.colSpan = 3;
-  td.textContent = `${integer.format(result.queries)} queries over ${integer.format(result.n)} points; brute force measured over ${integer.format(result.bruteQueries)} queries. The tree answers nearest ${result.speedup.toFixed(0)}× faster.`;
-  dom.benchTable.hidden = false;
+  dom.benchResults.hidden = false;
+  dom.benchStatus.textContent = `${integer.format(result.queries)} queries over ${integer.format(result.n)} points (brute force: ${integer.format(result.bruteQueries)}); ${result.withinMeanHits.toFixed(0)} hits per radius query.`;
 }
 
 async function benchmark(): Promise<void> {
@@ -349,7 +360,6 @@ async function benchmark(): Promise<void> {
         dom.benchStatus.textContent = `Running: ${message}…`;
       },
     );
-    dom.benchStatus.textContent = "";
     renderBenchmark(result);
   } catch (error) {
     dom.benchStatus.textContent = `Benchmark failed: ${String(error)}`;
