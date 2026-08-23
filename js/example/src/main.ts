@@ -322,25 +322,26 @@ function formatRate(us: number): string {
 }
 
 function renderBenchmark(result: BenchResult): void {
-  const rows: [string, number][] = [
-    ["nearest", result.nearestUs],
-    [`nearestN (k=${result.k})`, result.nearestNUs],
-    ["withinDistance", result.withinUs],
-    ["nearest (without tree)", result.bruteUs],
+  // The last row is the comparison, set apart by a rule.
+  const rows: [string, number, boolean][] = [
+    ["nearest", result.nearestUs, false],
+    [`nearestN (k=${result.k})`, result.nearestNUs, false],
+    ["withinDistance", result.withinUs, false],
+    ["nearest (without tree)", result.bruteUs, true],
   ];
   dom.benchResults.replaceChildren(
-    ...rows.flatMap(([label, us]) => {
+    ...rows.flatMap(([label, us, divider]) => {
       const dt = document.createElement("dt");
-      dt.className = "kv__code";
+      dt.className = divider ? "kv__code kv__divider" : "kv__code";
       dt.textContent = label;
       const dd = document.createElement("dd");
-      dd.className = "mono";
+      dd.className = divider ? "mono kv__divider" : "mono";
       dd.textContent = `${formatMicros(us)} · ${formatRate(us)}`;
       return [dt, dd];
     }),
   );
   dom.benchResults.hidden = false;
-  dom.benchStatus.textContent = `${integer.format(result.queries)} queries over ${integer.format(result.n)} points; ${result.withinMeanHits.toFixed(0)} hits per radius query. Without tree: nearest by a linear pass over every point in JS, ${integer.format(result.bruteQueries)} queries.`;
+  dom.benchStatus.textContent = `${integer.format(result.queries)} queries over ${integer.format(result.n)} points (linear scan: ${integer.format(result.bruteQueries)}); ${result.withinMeanHits.toFixed(0)} hits per radius query.`;
 }
 
 async function benchmark(): Promise<void> {
