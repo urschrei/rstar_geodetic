@@ -326,7 +326,7 @@ function renderBenchmark(result: BenchResult): void {
     ["nearest", result.nearestUs],
     [`nearestN (k=${result.k})`, result.nearestNUs],
     ["withinDistance", result.withinUs],
-    ["JS brute force", result.bruteUs],
+    ["nearest (JS scan)", result.bruteUs],
   ];
   dom.benchResults.replaceChildren(
     ...rows.flatMap(([label, us]) => {
@@ -340,7 +340,7 @@ function renderBenchmark(result: BenchResult): void {
     }),
   );
   dom.benchResults.hidden = false;
-  dom.benchStatus.textContent = `${integer.format(result.queries)} queries over ${integer.format(result.n)} points (brute force: ${integer.format(result.bruteQueries)}); ${result.withinMeanHits.toFixed(0)} hits per radius query.`;
+  dom.benchStatus.textContent = `${integer.format(result.queries)} queries over ${integer.format(result.n)} points; ${result.withinMeanHits.toFixed(0)} hits per radius query. JS scan: nearest by a linear pass over every point, ${integer.format(result.bruteQueries)} queries.`;
 }
 
 async function benchmark(): Promise<void> {
