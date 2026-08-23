@@ -1,6 +1,6 @@
 {
   "name": "rtree-geodetic",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A geodetic R-tree with great-circle and WGS84 nearest-neighbour and radius queries, compiled to WebAssembly",
   "license": "MIT OR Apache-2.0",
   "author": "Stephan Hügel <urschrei@gmail.com>",
