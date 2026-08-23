@@ -146,11 +146,11 @@ const globe = new Globe(dom.canvas, {
   onClick(lonLat) {
     if (state.pinned) {
       state.pinned = null;
-      dom.pinHint.textContent = "Click the globe to pin the query point.";
+      dom.pinHint.textContent = "Click the globe to fix the query point.";
       query(lonLat);
     } else {
       state.pinned = lonLat;
-      dom.pinHint.textContent = "Pinned. Click the globe again to follow the pointer.";
+      dom.pinHint.textContent = "Fixed. Click the globe again to follow the pointer.";
       query(lonLat);
     }
   },
