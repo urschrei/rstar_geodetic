@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>rtree-geodetic: geodetic nearest-neighbour queries in the browser</title>
+    <meta
+      name="description"
+      content="An interactive globe running great-circle and WGS84 nearest-neighbour and radius queries over hundreds of thousands of points with rtree-geodetic, a Rust R-tree compiled to WebAssembly."
+    />
+    <meta name="color-scheme" content="dark" />
+  </head>
+  <body>
+    <main class="app">
+      <aside class="panel" aria-label="Controls and results">
+        <header class="panel__header">
+          <h1>rtree-geodetic</h1>
+          <p class="lead">
+            A geodetic R-tree in Rust, compiled to WebAssembly. Move the pointer over the
+            globe to query the nearest places by great-circle distance; the yellow cap is a
+            radius query on the sphere, so it wraps the antimeridian and the poles.
+          </p>
+        </header>
+
+        <section class="section" aria-labelledby="data-heading">
+          <h2 id="data-heading">Data</h2>
+          <label class="field">
+            <span class="field__label">Dataset</span>
+            <select id="dataset">
+              <option value="cities">GeoNames populated places</option>
+              <option value="random:100000">100 000 random points</option>
+              <option value="random:500000">500 000 random points</option>
+              <option value="random:1000000">1 000 000 random points</option>
+              <option value="random:2000000">2 000 000 random points</option>
+            </select>
+          </label>
+          <dl class="stats">
+            <div><dt>Points</dt><dd id="stat-count">…</dd></div>
+            <div><dt>Tree build</dt><dd id="stat-build">…</dd></div>
+          </dl>
+        </section>
+
+        <section class="section" aria-labelledby="query-heading">
+          <h2 id="query-heading">Queries</h2>
+          <label class="field">
+            <span class="field__label"
+              >Nearest <output id="k-value" for="k">8</output> points</span
+            >
+            <input id="k" type="range" min="1" max="50" value="8" />
+          </label>
+          <label class="field">
+            <span class="field__label">Radius <output id="radius-value" for="radius"></output></span>
+            <input id="radius" type="range" min="0" max="1000" value="420" />
+          </label>
+          <label class="field field--check">
+            <input id="wgs84" type="checkbox" checked />
+            <span>Also compute the WGS84 geodesic distance</span>
+          </label>
+          <dl class="stats" aria-live="polite">
+            <div class="stats__wide">
+              <dt>Query point</dt>
+              <dd id="q-point" class="mono">hover over the globe</dd>
+            </div>
+            <div class="stats__wide">
+              <dt>Nearest</dt>
+              <dd id="q-nearest">—</dd>
+            </div>
+            <div><dt>Great circle</dt><dd id="q-gc" class="mono">—</dd></div>
+            <div><dt>WGS84</dt><dd id="q-wgs84" class="mono">—</dd></div>
+            <div><dt>nearest</dt><dd id="t-nearest" class="mono">—</dd></div>
+            <div><dt>nearestN</dt><dd id="t-nearestn" class="mono">—</dd></div>
+            <div><dt>withinDistance</dt><dd id="t-within" class="mono">—</dd></div>
+            <div><dt>In radius</dt><dd id="q-within" class="mono">—</dd></div>
+          </dl>
+          <p class="hint" id="pin-hint">Click the globe to pin the query point.</p>
+        </section>
+
+        <section class="section" aria-labelledby="bench-heading">
+          <h2 id="bench-heading">Throughput</h2>
+          <p class="hint">
+            Random queries over the current dataset, timed in this tab, against a
+            brute-force scan in JavaScript.
+          </p>
+          <button id="bench" type="button">Run benchmark</button>
+          <p id="bench-status" class="hint" aria-live="polite"></p>
+          <table class="bench" id="bench-table" hidden>
+            <thead>
+              <tr><th scope="col">Query</th><th scope="col">Per query</th><th scope="col">Per second</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </section>
+
+        <footer class="panel__footer">
+          <p>
+            <a href="https://github.com/urschrei/rstar_geodetic">Source</a> ·
+            <a href="https://www.npmjs.com/package/rtree-geodetic">npm</a> ·
+            <a href="https://crates.io/crates/rstar_geodetic">crates.io</a>
+          </p>
+          <p>
+            Places from <a href="https://www.geonames.org/">GeoNames</a> (CC BY 4.0); coastlines
+            from <a href="https://www.naturalearthdata.com/">Natural Earth</a> via world-atlas.
+            Rendering by d3-geo. Timings depend on the device and the browser's timer resolution.
+          </p>
+        </footer>
+      </aside>
+
+      <div class="stage">
+        <canvas
+          id="globe"
+          tabindex="0"
+          aria-label="Globe. Drag to rotate, scroll to zoom, arrow keys to rotate, plus and minus to zoom."
+        ></canvas>
+        <div class="hud" id="hud" aria-hidden="true"></div>
+        <div class="loading" id="loading" role="status">Loading…</div>
+      </div>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
