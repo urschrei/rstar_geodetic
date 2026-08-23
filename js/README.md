@@ -11,6 +11,9 @@ Coordinates are longitude first, latitude second, in degrees. Distances are in m
 Query results are positions into the input sequence, so they index whatever array of
 features or properties the coordinates came from.
 
+An interactive demo runs these queries over a globe at
+<https://urschrei.github.io/rstar_geodetic/>; its source is in [`example/`](example/).
+
 ## Install
 
 ```sh

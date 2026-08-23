@@ -223,7 +223,8 @@ A `wasm-bindgen` package in [`js/`](js/), published to npm as `rtree-geodetic`, 
 three trees to JavaScript and TypeScript in browsers, bundlers, and Node. Inputs are flat
 typed arrays in the GeoArrow layout, nested arrays, or GeoJSON; queries return input
 positions as `Uint32Array`s with distances in metres; the WGS84 geodesic queries are
-compiled in. See [`js/README.md`](js/README.md) for the install and usage instructions.
+compiled in. See [`js/README.md`](js/README.md) for the install and usage instructions, and
+<https://urschrei.github.io/rstar_geodetic/> for an interactive demo over a globe.
 
 ## Testing
 
