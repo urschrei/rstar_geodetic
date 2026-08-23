@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   multi-geometries (`MultiPoint`, `MultiLineString`, `MultiPolygon`) convert via
   `TryFrom` into a bulk-loaded `GeodeticRTree`.
 - Property tests (Hegel) and an externally-anchored arc-distance reference.
+- `PointLeaf`: the exact-location lookups, the longitude/latitude window query, and the
+  ellipsoidal refine are available on a `GeodeticRTree` of any single-point leaf, such as
+  `GeomWithData<GeodeticPoint, T>`, not only `GeodeticPoint`. The `indexed` module's
+  `IndexedPoint` uses this so the bindings report input positions straight from the leaf.
 
 This code was extracted from a feature branch of `rstar`. It uses only the public
 `rstar` API.

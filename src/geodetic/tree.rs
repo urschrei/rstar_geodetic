@@ -3,6 +3,7 @@
 use alloc::vec::Vec;
 
 use rstar::iterators::{RTreeIterator, RTreeIteratorMut};
+use rstar::primitives::GeomWithData;
 use rstar::{AABB, ParentNode, PointDistance, RTree, RTreeObject};
 
 use super::coord::GeodeticCoord;
@@ -83,6 +84,29 @@ use super::spheroid::{
 pub trait GeodeticObject: RTreeObject<Envelope = AABB<UnitVec>> + PointDistance {}
 
 impl<T: RTreeObject<Envelope = AABB<UnitVec>> + PointDistance> GeodeticObject for T {}
+
+/// A leaf that is a single point and can report the longitude/latitude it was built
+/// from. The point-only queries (the exact-location lookups, the longitude/latitude
+/// window query, and the ellipsoidal refine) are available on a `GeodeticRTree` of any
+/// such leaf: [`GeodeticPoint`] itself, `GeomWithData<GeodeticPoint, T>` (a point with
+/// attached data, such as its position in an input sequence), and
+/// [`IndexedLeaf`](crate::indexed::IndexedLeaf) over a pointer to a `GeodeticPoint`.
+pub trait PointLeaf: GeodeticObject {
+    /// The point's original longitude/latitude coordinate, in degrees.
+    fn coord(&self) -> GeodeticCoord;
+}
+
+impl PointLeaf for GeodeticPoint {
+    fn coord(&self) -> GeodeticCoord {
+        GeodeticPoint::coord(self)
+    }
+}
+
+impl<T> PointLeaf for GeomWithData<GeodeticPoint, T> {
+    fn coord(&self) -> GeodeticCoord {
+        self.geom().coord()
+    }
+}
 
 /// A geodetic R-tree over longitude/latitude data.
 ///
@@ -305,7 +329,7 @@ impl<G: GeodeticObject> GeodeticRTree<G> {
     }
 }
 
-impl GeodeticRTree<GeodeticPoint> {
+impl<P: PointLeaf> GeodeticRTree<P> {
     // --- exact-location lookup and window query: point-only ---
     //
     // These are specific to point leaves: an exact-location lookup keyed by a single
@@ -314,20 +338,17 @@ impl GeodeticRTree<GeodeticPoint> {
 
     /// Removes a point located exactly at `query` (by embedded vector), returning
     /// it if found.
-    pub fn remove_at_point(&mut self, query: GeodeticCoord) -> Option<GeodeticPoint> {
+    pub fn remove_at_point(&mut self, query: GeodeticCoord) -> Option<P> {
         self.inner.remove_at_point(UnitVec::from(query))
     }
 
     /// Returns a point located exactly at `query` (by embedded vector), if any.
-    pub fn locate_at_point(&self, query: GeodeticCoord) -> Option<&GeodeticPoint> {
+    pub fn locate_at_point(&self, query: GeodeticCoord) -> Option<&P> {
         self.inner.locate_at_point(UnitVec::from(query))
     }
 
     /// Returns all points located exactly at `query` (by embedded vector).
-    pub fn locate_all_at_point(
-        &self,
-        query: GeodeticCoord,
-    ) -> impl Iterator<Item = &GeodeticPoint> + '_ {
+    pub fn locate_all_at_point(&self, query: GeodeticCoord) -> impl Iterator<Item = &P> + '_ {
         self.inner.locate_all_at_point(UnitVec::from(query))
     }
 
@@ -370,7 +391,7 @@ impl GeodeticRTree<GeodeticPoint> {
         &self,
         lower: GeodeticCoord,
         upper: GeodeticCoord,
-    ) -> impl Iterator<Item = &GeodeticPoint> + '_ {
+    ) -> impl Iterator<Item = &P> + '_ {
         debug_assert!(
             lower.lat <= upper.lat,
             "locate_in_rectangle requires lower.lat <= upper.lat (got {} > {})",
@@ -398,7 +419,7 @@ impl GeodeticRTree<GeodeticPoint> {
 /// is epoch- and realisation-independent (see the [module docs](super)); these methods
 /// perform no datum transformation.
 #[cfg(feature = "wgs84")]
-impl GeodeticRTree<GeodeticPoint> {
+impl<P: PointLeaf> GeodeticRTree<P> {
     /// Returns the geodesic nearest point to `query` on `ellipsoid`, or `None` if the
     /// tree is empty or `query` has a non-finite coordinate. See
     /// [`Self::nearest_neighbor_with_distance_on_ellipsoid`] for the
@@ -407,7 +428,7 @@ impl GeodeticRTree<GeodeticPoint> {
         &self,
         query: GeodeticCoord,
         ellipsoid: Ellipsoid,
-    ) -> Option<&GeodeticPoint> {
+    ) -> Option<&P> {
         self.nearest_neighbor_with_distance_on_ellipsoid(query, ellipsoid)
             .map(|(point, _)| point)
     }
@@ -443,13 +464,13 @@ impl GeodeticRTree<GeodeticPoint> {
         &self,
         query: GeodeticCoord,
         ellipsoid: Ellipsoid,
-    ) -> Option<(&GeodeticPoint, f64)> {
+    ) -> Option<(&P, f64)> {
         if !finite(query) {
             return None;
         }
         let geoid = geoid_for(ellipsoid);
         let margin = geodesic_spherical_margin(ellipsoid);
-        let mut best: Option<(&GeodeticPoint, f64)> = None;
+        let mut best: Option<(&P, f64)> = None;
         for (point, c2) in self
             .inner
             .nearest_neighbor_iter_with_distance_2(UnitVec::from(query))
@@ -504,7 +525,7 @@ impl GeodeticRTree<GeodeticPoint> {
         query: GeodeticCoord,
         radius_metres: f64,
         ellipsoid: Ellipsoid,
-    ) -> impl Iterator<Item = &GeodeticPoint> + '_ {
+    ) -> impl Iterator<Item = &P> + '_ {
         let valid = finite(query) && radius_metres >= 0.0;
         valid
             .then(move || {
@@ -523,7 +544,7 @@ impl GeodeticRTree<GeodeticPoint> {
 
     /// Returns the WGS84-ellipsoid geodesic nearest point to `query`, or `None` if the
     /// tree is empty; [`Self::nearest_neighbor_on_ellipsoid`] on [`Ellipsoid::WGS84`].
-    pub fn nearest_neighbor_wgs84(&self, query: GeodeticCoord) -> Option<&GeodeticPoint> {
+    pub fn nearest_neighbor_wgs84(&self, query: GeodeticCoord) -> Option<&P> {
         self.nearest_neighbor_on_ellipsoid(query, Ellipsoid::WGS84)
     }
 
@@ -548,10 +569,7 @@ impl GeodeticRTree<GeodeticPoint> {
     /// // Exact WGS84-ellipsoid geodesic metres, not the spherical approximation.
     /// assert!(metres < 35_000.0);
     /// ```
-    pub fn nearest_neighbor_with_distance_wgs84(
-        &self,
-        query: GeodeticCoord,
-    ) -> Option<(&GeodeticPoint, f64)> {
+    pub fn nearest_neighbor_with_distance_wgs84(&self, query: GeodeticCoord) -> Option<(&P, f64)> {
         self.nearest_neighbor_with_distance_on_ellipsoid(query, Ellipsoid::WGS84)
     }
 
@@ -580,7 +598,7 @@ impl GeodeticRTree<GeodeticPoint> {
         &self,
         query: GeodeticCoord,
         radius_metres: f64,
-    ) -> impl Iterator<Item = &GeodeticPoint> + '_ {
+    ) -> impl Iterator<Item = &P> + '_ {
         self.locate_within_distance_on_ellipsoid(query, radius_metres, Ellipsoid::WGS84)
     }
 }
@@ -772,7 +790,7 @@ mod tests {
 
     #[test]
     fn locate_in_rectangle_empty_tree() {
-        let tree = GeodeticRTree::new();
+        let tree = GeodeticRTree::<GeodeticPoint>::new();
         assert_eq!(
             tree.locate_in_rectangle(coord(-10.0, -10.0), coord(10.0, 10.0))
                 .count(),

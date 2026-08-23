@@ -26,4 +26,4 @@ pub use point::GeodeticPoint;
 pub use polygon::{GeodeticPolygon, GeodeticRing};
 #[cfg(feature = "wgs84")]
 pub use spheroid::{Ellipsoid, geodesic_distance, geodesic_distance_wgs84};
-pub use tree::{GeodeticObject, GeodeticRTree, envelope_distance_metres};
+pub use tree::{GeodeticObject, GeodeticRTree, PointLeaf, envelope_distance_metres};
