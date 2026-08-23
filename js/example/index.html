@@ -16,7 +16,7 @@
         <header class="panel__header">
           <h1>rtree-geodetic</h1>
           <p class="lead">
-            A geodetic R-tree in Rust, compiled to WebAssembly. Move the pointer over the
+            A geodetic R-tree in Rust, compiled to WASM. Move the pointer over the
             globe to query the nearest places by great-circle distance; the yellow cap is a
             radius query on the sphere, so it wraps the antimeridian and the poles.
           </p>
@@ -72,14 +72,13 @@
             <div><dt>withinDistance</dt><dd id="t-within" class="mono">—</dd></div>
             <div><dt>In radius</dt><dd id="q-within" class="mono">—</dd></div>
           </dl>
-          <p class="hint" id="pin-hint">Click the globe to pin the query point.</p>
+          <p class="hint" id="pin-hint">Click the globe to fix the query point.</p>
         </section>
 
         <section class="section" aria-labelledby="bench-heading">
           <h2 id="bench-heading">Throughput</h2>
           <p class="hint">
-            Random queries over the current dataset, timed in this tab, against a
-            brute-force scan in JavaScript.
+            Random queries over the current dataset compared to JS brute-force.
           </p>
           <button id="bench" type="button">Run benchmark</button>
           <p id="bench-status" class="hint" aria-live="polite"></p>
@@ -100,7 +99,7 @@
           <p>
             Places from <a href="https://www.geonames.org/">GeoNames</a> (CC BY 4.0); coastlines
             from <a href="https://www.naturalearthdata.com/">Natural Earth</a> via world-atlas.
-            Rendering by d3-geo. Timings depend on the device and the browser's timer resolution.
+            Rendering by d3-geo.
           </p>
         </footer>
       </aside>
