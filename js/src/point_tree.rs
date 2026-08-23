@@ -80,6 +80,30 @@ impl PointTree {
             .map(|(point, metres)| neighbor(self.position(point.coord()) as usize, metres)))
     }
 
+    /// The `k` nearest points to `(lon, lat)` by great-circle distance, nearest first,
+    /// as a `{ indices, distances }` object. Fewer than `k` are returned if the tree
+    /// holds fewer points.
+    #[wasm_bindgen(js_name = nearestN)]
+    pub fn nearest_n(&self, lon: f64, lat: f64, k: u32) -> Result<Neighbors, JsValue> {
+        let query = query_coord(lon, lat)?;
+        let k = k as usize;
+        let mut indices: Vec<u32> = Vec::with_capacity(k);
+        let mut distances: Vec<f64> = Vec::with_capacity(k);
+        for (point, metres) in self.tree.nearest_neighbor_iter_with_distance(query) {
+            if indices.len() >= k {
+                break;
+            }
+            for &index in &self.index_by_coord[&coord_key(point.coord())] {
+                if indices.len() >= k {
+                    break;
+                }
+                indices.push(index as u32);
+                distances.push(metres);
+            }
+        }
+        Ok(neighbors(&indices, &distances))
+    }
+
     /// Every point within `radiusMetres` great-circle metres of `(lon, lat)`, as a
     /// `{ indices, distances }` object.
     #[wasm_bindgen(js_name = withinDistance)]

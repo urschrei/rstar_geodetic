@@ -76,6 +76,15 @@ export class PointTree {
   }
 
   /**
+   * The `k` nearest points to `(lon, lat)` by great-circle distance, nearest first, as
+   * `{ indices, distances }`. Fewer than `k` are returned if the tree holds fewer
+   * points.
+   */
+  nearestN(lon: number, lat: number, k: number): Neighbors {
+    return this.#inner.nearestN(lon, lat, k);
+  }
+
+  /**
    * Every point within `radiusMetres` great-circle metres of `(lon, lat)`, as
    * `{ indices, distances }`.
    */
@@ -182,6 +191,15 @@ export class LineStringTree {
   }
 
   /**
+   * The `k` nearest linestrings to `(lon, lat)` by great-circle distance, nearest first, as
+   * `{ indices, distances }`. Fewer than `k` are returned if the tree holds fewer
+   * linestrings.
+   */
+  nearestN(lon: number, lat: number, k: number): Neighbors {
+    return this.#inner.nearestN(lon, lat, k);
+  }
+
+  /**
    * Every linestring within `radiusMetres` great-circle metres of `(lon, lat)`, as
    * `{ indices, distances }`.
    */
@@ -248,6 +266,15 @@ export class PolygonTree {
    */
   nearestWithDistance(lon: number, lat: number): Neighbor | undefined {
     return this.#inner.nearestWithDistance(lon, lat);
+  }
+
+  /**
+   * The `k` nearest polygons to `(lon, lat)` by great-circle distance, nearest first, as
+   * `{ indices, distances }`. Fewer than `k` are returned if the tree holds fewer
+   * polygons.
+   */
+  nearestN(lon: number, lat: number, k: number): Neighbors {
+    return this.#inner.nearestN(lon, lat, k);
   }
 
   /**

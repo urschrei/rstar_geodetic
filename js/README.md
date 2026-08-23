@@ -41,6 +41,9 @@ tree.nearest(-176.0, -21.0);
 tree.nearestWithDistance(-176.0, -21.0);
 // { index: 1, distance: 103809.38 }
 
+tree.nearestN(-176.0, -21.0, 2); // the k nearest, nearest first
+// { indices: Uint32Array [1, 0], distances: Float64Array [...] }
+
 tree.withinDistance(-176.0, -21.0, 1_000_000);
 // { indices: Uint32Array [0, 1], distances: Float64Array [...] }
 
@@ -66,8 +69,8 @@ non-finite value, an odd-length coordinate array) throws an `Error` whose `name`
 
 ### Linestrings and polygons
 
-`LineStringTree` and `PolygonTree` answer `nearest`, `nearestWithDistance`, and
-`withinDistance` by the distance to the nearest point of each geometry; a point inside a
+`LineStringTree` and `PolygonTree` answer `nearest`, `nearestWithDistance`, `nearestN`,
+and `withinDistance` by the distance to the nearest point of each geometry; a point inside a
 polygon is at distance zero. Each takes nested arrays (the shape of the GeoJSON
 `coordinates` member) or the flat CSR layout GeoArrow uses:
 

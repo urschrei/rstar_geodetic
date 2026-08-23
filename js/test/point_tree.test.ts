@@ -115,6 +115,30 @@ describe("withinDistance", () => {
   });
 });
 
+describe("nearestN", () => {
+  test("returns the k nearest points, nearest first", () => {
+    using tree = new PointTree(ISLANDS);
+    const { indices, distances } = tree.nearestN(-176.0, -21.0, 2);
+    expect(Array.from(indices)).toEqual([1, 0]);
+    expect(distances.length).toBe(2);
+    expect(distances[0]).toBeLessThan(distances[1]);
+    expect(distances[0]).toBeCloseTo(103809.38, 0);
+  });
+
+  test("returns every point when k exceeds the tree size", () => {
+    using tree = new PointTree(ISLANDS);
+    expect(tree.nearestN(0.0, 0.0, 10).indices.length).toBe(3);
+    expect(tree.nearestN(0.0, 0.0, 0).indices.length).toBe(0);
+  });
+
+  test("counts duplicate positions towards k", () => {
+    using tree = new PointTree([10.0, 10.0, 20.0, 20.0, 10.0, 10.0]);
+    const { indices, distances } = tree.nearestN(10.0, 10.0, 2);
+    expect(Array.from(indices).sort()).toEqual([0, 2]);
+    expect(Array.from(distances)).toEqual([0, 0]);
+  });
+});
+
 describe("inRectangle", () => {
   test("handles a window crossing the antimeridian", () => {
     using tree = new PointTree([179.0, 0.0, -178.0, 0.0, 0.0, 0.0]);

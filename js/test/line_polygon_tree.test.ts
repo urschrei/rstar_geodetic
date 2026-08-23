@@ -112,6 +112,13 @@ describe("LineStringTree", () => {
     }
   });
 
+  test("nearestN returns the k nearest lines, nearest first", () => {
+    using tree = new LineStringTree(LINES);
+    const { indices, distances } = tree.nearestN(10.5, 0.1, 2);
+    expect(Array.from(indices)).toEqual([1, 0]);
+    expect(distances[0]).toBeLessThan(distances[1]);
+  });
+
   test("rejects bad offsets and too-short lines", () => {
     expect(
       () => new LineStringTree({ coords: [0, 0, 1, 0], offsets: [0, 1, 2, 3] }),
@@ -154,6 +161,14 @@ describe("PolygonTree", () => {
     const hit = tree.nearestWithDistance(10.0, 0.0)!;
     expect(hit.index).toBe(1);
     expect(hit.distance).toBeGreaterThan(50_000);
+  });
+
+  test("nearestN puts a containing polygon first at distance zero", () => {
+    using tree = new PolygonTree(POLYGONS);
+    const { indices, distances } = tree.nearestN(0.0, 0.0, 2);
+    expect(indices[0]).toBe(0);
+    expect(distances[0]).toBe(0);
+    expect(distances.length).toBe(2);
   });
 
   test("withinDistance includes containing polygons", () => {

@@ -7,7 +7,9 @@ use wasm_bindgen::prelude::wasm_bindgen;
 
 use crate::csr::{validate_offsets, vertex_count, vertex_pairs};
 use crate::error::geodetic_error;
-use crate::indexed_query::{indexed_nearest, indexed_nearest_with_distance, indexed_within};
+use crate::indexed_query::{
+    indexed_nearest, indexed_nearest_n, indexed_nearest_with_distance, indexed_within,
+};
 use crate::point_tree::query_coord;
 use crate::result::{Neighbor, Neighbors};
 
@@ -64,6 +66,18 @@ impl LineStringTree {
         Ok(indexed_nearest_with_distance(
             &self.tree,
             query_coord(lon, lat)?,
+        ))
+    }
+
+    /// The `k` nearest linestrings to `(lon, lat)` by great-circle distance, nearest first,
+    /// as a `{ indices, distances }` object. Fewer than `k` are returned if the tree
+    /// holds fewer linestrings.
+    #[wasm_bindgen(js_name = nearestN)]
+    pub fn nearest_n(&self, lon: f64, lat: f64, k: u32) -> Result<Neighbors, JsValue> {
+        Ok(indexed_nearest_n(
+            &self.tree,
+            query_coord(lon, lat)?,
+            k as usize,
         ))
     }
 

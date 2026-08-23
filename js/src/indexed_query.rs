@@ -30,6 +30,24 @@ where
         .map(|(leaf, metres)| neighbor(leaf.index, metres))
 }
 
+/// The `k` nearest leaves' input positions and great-circle distances, nearest first.
+pub fn indexed_nearest_n<G>(
+    tree: &GeodeticRTree<IndexedLeaf<G>>,
+    query: GeodeticCoord,
+    k: usize,
+) -> Neighbors
+where
+    IndexedLeaf<G>: GeodeticObject,
+{
+    let mut indices: Vec<u32> = Vec::with_capacity(k);
+    let mut distances: Vec<f64> = Vec::with_capacity(k);
+    for (leaf, metres) in tree.nearest_neighbor_iter_with_distance(query).take(k) {
+        indices.push(leaf.index as u32);
+        distances.push(metres);
+    }
+    neighbors(&indices, &distances)
+}
+
 /// Every leaf within `radius_metres`, each with its own great-circle distance.
 pub fn indexed_within<G>(
     tree: &GeodeticRTree<IndexedLeaf<G>>,
