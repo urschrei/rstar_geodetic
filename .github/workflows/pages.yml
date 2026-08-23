@@ -1,0 +1,95 @@
+name: Deploy the demo to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "js/**"
+      - "src/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time; a newer push supersedes a build still in progress.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build the site
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: pages
+      - name: Install wasm-pack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack
+      - name: Install Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            js/package-lock.json
+            js/example/package-lock.json
+      - name: Build the npm package
+        working-directory: js
+        run: |
+          npm ci
+          npm run build
+      - name: Install the example's dependencies
+        working-directory: js/example
+        run: npm ci
+      - name: Name the month
+        id: month
+        run: echo "month=$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+      - name: Cache the GeoNames download
+        uses: actions/cache@v6
+        with:
+          path: js/example/public/data
+          # A new key each month, so the places are refetched about that often.
+          key: geonames-cities500-${{ steps.month.outputs.month }}
+      - name: Fetch the GeoNames places
+        working-directory: js/example
+        run: npm run data
+      - name: Build the site
+        working-directory: js/example
+        run: |
+          npm run typecheck
+          npm run lint
+          npm run build
+      - name: Configure Pages
+        uses: actions/configure-pages@v6
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: js/example/dist
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
