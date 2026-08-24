@@ -58,6 +58,7 @@ const COLOURS = {
   capStroke: "rgba(255, 196, 61, 0.9)",
   arc: "rgba(94, 234, 212, 0.85)",
   neighbour: "#5eead4",
+  nearest: "#ff6b6b",
   query: "#ffffff",
 };
 
@@ -423,18 +424,28 @@ export class Globe {
     const sx = this.#screenX;
     const sy = this.#screenY;
     const visible = this.#visible;
-    ctx.fillStyle = COLOURS.neighbour;
-    ctx.strokeStyle = COLOURS.ocean;
-    ctx.lineWidth = 1;
-    for (let j = 0; j < overlay.neighbours.length; j++) {
+    // Farthest first, so the nearest point is drawn on top of any it overlaps.
+    for (let j = overlay.neighbours.length - 1; j >= 0; j--) {
       const i = overlay.neighbours[j]!;
       if (!visible[i]) {
         continue;
       }
+      const x = sx[i]! / dpr;
+      const y = sy[i]! / dpr;
+      ctx.fillStyle = j === 0 ? COLOURS.nearest : COLOURS.neighbour;
+      ctx.strokeStyle = COLOURS.ocean;
+      ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.arc(sx[i]! / dpr, sy[i]! / dpr, j === 0 ? 4 : 2.5, 0, 2 * Math.PI);
+      ctx.arc(x, y, j === 0 ? 4 : 2.5, 0, 2 * Math.PI);
       ctx.fill();
       ctx.stroke();
+      if (j === 0) {
+        ctx.beginPath();
+        ctx.arc(x, y, 7.5, 0, 2 * Math.PI);
+        ctx.strokeStyle = COLOURS.nearest;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
     }
 
     if (Number.isFinite(qx) && Number.isFinite(qy)) {
