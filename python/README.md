@@ -5,9 +5,9 @@ geodetic (longitude/latitude) R-tree with great-circle and WGS84 nearest-neighbo
 radius queries over point, linestring, and polygon geometries.
 
 Each `(lon, lat)` is mapped to a unit vector on the sphere and indexed in an R-tree, so the
-antimeridian and the poles are ordinary interior points: no wrapping or special cases.
+antimeridian and the poles are ordinary interior points.
 Coordinates are longitude first, latitude second, in degrees; distances are returned in
-metres. Queries return integer input positions (the shapely `STRtree` convention).
+metres. Queries return integer input positions.
 
 ## Install
 
@@ -100,13 +100,11 @@ too few vertices, an edge spanning half the sphere, or an unclosed ring) raise
 
 ## Performance
 
-Measured with [`benchmarks/bench.py`](benchmarks/bench.py) (seeded synthetic data;
-run it with `uv run --group bench python benchmarks/bench.py`) on an Apple M2 Pro,
-Python 3.14, shapely 2.1.2 (GEOS STRtree), rtree 1.4.1 (libspatialindex), release
-build. Datasets: one million points distributed uniformly on the sphere, and one
-hundred thousand small linestrings and polygons, queried per call from Python.
+Measured with [`benchmarks/bench.py`](benchmarks/bench.py)
+(`uv run --group bench python benchmarks/bench.py`; seeded synthetic data,
+Apple M2 Pro, Python 3.14, shapely 2.1.2, rtree 1.4.1, release build).
 
-One million points, 10,000 queries:
+One million points distributed uniformly on the sphere, 10,000 queries:
 
 | Operation | rtree-geodetic | shapely STRtree | Rtree |
 |---|---|---|---|
@@ -115,7 +113,7 @@ One million points, 10,000 queries:
 | Nearest neighbour, WGS84 geodesic | 2.6 us | not offered | not offered |
 | Within 50 km (radius query, ~16 hits) | 10.5 us | 10.3 us* | not offered |
 
-100,000 extent geometries, 2,000 queries:
+100,000 small linestrings and polygons, 2,000 queries:
 
 | Operation | rtree-geodetic | shapely STRtree |
 |---|---|---|
@@ -124,23 +122,17 @@ One million points, 10,000 queries:
 | Polygon build | 2.44 s | 0.02 s |
 | Polygon nearest, per call | 7.8 us | 12.6 us |
 
-> [!NOTE] 
-> First, the planar libraries answer a
-different question: they index raw lon/lat degrees, so their distances are in
-degrees and their answers degrade as meridians converge. On the uniform global
-dataset above, the `STRtree` planar nearest neighbour differs from the true geodesic
-nearest neighbour for 10.9% of queries; `rtree-geodetic` returns the geodesically
-correct answer with the distance already in metres (this is the correctness you
-would otherwise get from the PostGIS `geography` type, without a database round
-trip). The starred `STRtree` radius query uses an equator-equivalent degree radius,
-which returns the wrong set away from the equator. Second, shapely's batch API
-(`query_nearest` with an array of geometries) **amortises** the Python boundary to
-5.7 us per query at 1M points; rtree-geodetic currently offers per-call queries **only**.
+> [!NOTE]
+> The planar libraries index raw degrees, so their distances are in degrees and
+their results degrade away from the equator: on this dataset the `STRtree` nearest
+neighbour is geodesically wrong for 10.9% of queries, and the starred radius query
+(an equator-equivalent degree radius) returns the wrong set at other latitudes.
+Shapely's batch `query_nearest` amortises the Python boundary to 5.7 us per query
+at 1M points; rtree-geodetic offers per-call queries only.
 
-Build times for rtree-geodetic include validating every coordinate and, for
-extent geometries, precomputing per-edge great-circle envelopes; construction
-currently traverses Python objects (`__geo_interface__` or sequences): a
-numpy / GeoArrow fast path is future work.
+rtree-geodetic build times include coordinate validation and, for linestrings and
+polygons, per-edge great-circle envelopes; construction traverses Python objects,
+so a numpy / GeoArrow fast path is future work.
 
 ## Licence
 

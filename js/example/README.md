@@ -1,7 +1,6 @@
 # rtree-geodetic demo
 
-An interactive globe that runs `rtree-geodetic` queries in the browser, deployed to
-<https://urschrei.github.io/rstar_geodetic/> by `.github/workflows/pages.yml`.
+An interactive globe that runs `rtree-geodetic` queries in the browser.
 
 The globe is an orthographic projection drawn with d3-geo on a canvas. The point cloud
 (GeoNames populated places, or up to two million random points) is projected by hand from

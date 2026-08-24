@@ -62,7 +62,7 @@ assert!(metres < 100_000.0); // within ~100 km of the nearer linestring
 A `GeodeticPolygon` leaf is a filled spherical polygon: a query strictly inside is at
 distance zero, otherwise the distance is to the nearest boundary point. Ring orientation
 follows OGC/GeoJSON (exterior counter-clockwise as seen from outside, holes clockwise) and
-is respected as given, not auto-corrected, so polygons larger than a hemisphere are
+is not auto-corrected. Polygons larger than a hemisphere are
 expressible.
 
 ```rust
@@ -128,8 +128,8 @@ let tree: GeodeticRTree<GeodeticLineString> = lines.try_into().unwrap();
 assert_eq!(tree.size(), 2);
 ```
 
-The orphan rule prevents converting straight to a `Vec<GeodeticPolygon>` (the `Vec` is a
-foreign type), so the collection conversions target `GeodeticRTree`. For a plain `Vec`, or
+The orphan rule prevents converting straight to a `Vec<GeodeticPolygon>`,
+so the collection conversions target `GeodeticRTree`. For a plain `Vec`, or
 to convert back to `geo-types`, map the element conversions over the geometry's iterator:
 
 ```rust
@@ -175,7 +175,7 @@ rstar_geodetic = { version = "0.1", features = ["wgs84"] }
 The optional `ffi` feature exposes a C-ABI surface over all three tree types: bulk-load
 constructors, nearest-neighbour and within-distance queries, a longitude/latitude rectangle
 query on point trees, and the WGS84 geodesic variants on point trees. It pulls in `std`, so
-it is off by default and the base crate stays `no_std`. Build the C library with the
+it is off by default. Build the C library with the
 committed `justfile`:
 
 ```sh
@@ -185,7 +185,7 @@ just ffi-smoke      # compile and run examples/c/smoke.c against the cdylib
 
 The header at [`include/rstar_geodetic.h`](include/rstar_geodetic.h) is generated with
 [cbindgen](https://github.com/mozilla/cbindgen) and committed; `just ffi-check-header`
-regenerates it and fails on drift (also run in CI). The WGS84 entry points are guarded by
+regenerates it. The WGS84 entry points are guarded by
 `#if defined(RSG_HAVE_WGS84)`; define `RSG_HAVE_WGS84` when the library is built with the
 `wgs84` feature.
 

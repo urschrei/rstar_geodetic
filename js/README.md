@@ -4,15 +4,13 @@ A geodetic R-tree for JavaScript and TypeScript, compiled to WebAssembly from th
 [`rstar_geodetic`](https://github.com/urschrei/rstar_geodetic) crate. It indexes points,
 linestrings, and polygons by longitude and latitude and answers nearest-neighbour and
 within-distance queries by great-circle distance (and, for points, rectangle queries and
-exact WGS84 geodesic distances). The ±180° antimeridian and the poles need no special
-handling.
+exact WGS84 geodesic distances). The ±180° antimeridian and the poles do not require special handling. 
 
 Coordinates are longitude first, latitude second, in degrees. Distances are in metres.
-Query results are positions into the input sequence, so they index whatever array of
-features or properties the coordinates came from.
+Query results are positions into the input sequence.
 
 An interactive demo runs these queries over a globe at
-<https://urschrei.github.io/rstar_geodetic/>; its source is in [`example/`](example/).
+<https://urschrei.github.io/rstar_geodetic/>.
 
 ## Install
 
@@ -105,9 +103,7 @@ polygons.nearestWithDistance(0, 0); // { index: 0, distance: 0 }
 
 Each tree has a `fromGeoJSON` constructor taking a `FeatureCollection`, or an array of
 `Feature`s or bare geometries, of the matching single geometry type (`Point`,
-`LineString`, or `Polygon`). Result positions index the input features one-to-one, so a
-`Multi*` or `null` geometry is rejected with a `TypeError` naming its position. The
-GeoJSON types are structural, so values typed with `@types/geojson` are accepted as is.
+`LineString`, or `Polygon`). The GeoJSON types are structural: values typed with `@types/geojson` are accepted.
 
 ```ts
 const tree = PointTree.fromGeoJSON(featureCollection);
