@@ -5,7 +5,7 @@ build-backend = "maturin"
 
 [project]
 name = "rtree-geodetic"
-version = "0.2.0"
+version = "0.2.1"
 description = "A geodetic R-tree with great-circle and WGS84 nearest-neighbour and radius queries"
 readme = "README.md"
 requires-python = ">=3.10"

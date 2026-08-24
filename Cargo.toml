@@ -10,7 +10,7 @@ resolver = "3"
 
 [package]
 name = "rstar_geodetic"
-version = "0.2.0"
+version = "0.2.1"
 authors = [
     "Stephan Hügel <urschrei@gmail.com>",
 ]
