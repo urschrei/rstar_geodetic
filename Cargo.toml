@@ -63,7 +63,7 @@ geo-types = ["dep:geo-types"]
 approx = "0.5"
 rand = "0.10"
 rand_hc = "0.5"
-hegeltest = "0.29.10"
+hegeltest = "0.32.3"
 criterion = { version = "0.8", features = ["html_reports"] }
 
 [[bench]]
