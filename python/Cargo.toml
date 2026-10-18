@@ -21,4 +21,4 @@ rstar_geodetic = { path = "..", features = ["std", "wgs84"] }
 rstar = "0.13"
 # `extension-module` is deliberately not enabled here; maturin adds it via
 # `[tool.maturin] features` so `cargo clippy`/`cargo test` still link against libpython.
-pyo3 = { version = "0.29", features = ["abi3-py310"] }
+pyo3 = { version = "0.30", features = ["abi3-py310"] }
