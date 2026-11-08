@@ -18,7 +18,7 @@ crate-type = ["cdylib", "rlib"]
 rstar_geodetic = { path = "..", features = ["std", "wgs84"] }
 # For the `PointDistance` trait method the within-distance query calls on each hit. Must
 # match the version `rstar_geodetic` uses.
-rstar = "0.13"
+rstar = "0.14"
 wasm-bindgen = "0.2"
 # Typed-array and plain-object construction for query results.
 js-sys = "0.3"

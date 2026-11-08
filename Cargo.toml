@@ -25,7 +25,7 @@ keywords = ["rtree", "geodetic", "spatial", "geo", "nearest-neighbor"]
 categories = ["data-structures", "science::geo"]
 
 [dependencies]
-rstar = "0.13"
+rstar = "0.14"
 num-traits = { version = "0.2", default-features = false, features = ["libm"] }
 # Robust adaptive geometric predicates (orient3d) for the polygon point-in-polygon
 # sign tests. Forced into no_std mode so the crate builds for a no_std target; no_std
@@ -63,7 +63,7 @@ geo-types = ["dep:geo-types"]
 approx = "0.5"
 rand = "0.10"
 rand_hc = "0.5"
-hegeltest = "0.29.10"
+hegeltest = "0.52.0"
 criterion = { version = "0.8", features = ["html_reports"] }
 
 [[bench]]
