@@ -18,7 +18,7 @@ crate-type = ["cdylib"]
 rstar_geodetic = { path = "..", features = ["std", "wgs84"] }
 # For the `RTreeObject`/`PointDistance` traits the local index leaf delegates. Must match
 # the version `rstar_geodetic` uses so the trait impls line up.
-rstar = "0.13"
+rstar = "0.14"
 # `extension-module` is deliberately not enabled here; maturin adds it via
 # `[tool.maturin] features` so `cargo clippy`/`cargo test` still link against libpython.
-pyo3 = { version = "0.29", features = ["abi3-py310"] }
+pyo3 = { version = "0.30", features = ["abi3-py310"] }
